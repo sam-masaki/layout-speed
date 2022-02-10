@@ -560,7 +560,17 @@ pub fn main() {
             let vis_x;
             let vis_y;
             // If we are after the current keyframe and before a coming frame
-            if pos_keyframe.t < vis_curtime {
+
+            if findex == 2 {
+                println!(
+                    "=== on {} keyframe, at {}. keyframe time is {}",
+                    findex, vis_curtime, pos_keyframe.t
+                );
+            }
+
+            if vis_curtime > pos_keyframe.t {
+                // If current keyframe is not the last
+
                 if vis_pos_keyframes[findex] < abc.fingers.pos[findex].len() as u32 - 1 {
                     let next_pos = abc.fingers.pos[findex]
                         .get(vis_pos_keyframes[findex] as usize + 1)
@@ -570,8 +580,8 @@ pub fn main() {
                     let cur_time_diff = vis_curtime - pos_keyframe.t;
 
                     println!(
-                        "total_time_diff {}, cur_time_diff {}",
-                        total_time_diff, cur_time_diff
+                        "{}: total_time_diff {}, cur_time_diff {}",
+                        findex, total_time_diff, cur_time_diff
                     );
 
                     if total_time_diff < cur_time_diff || total_time_diff - cur_time_diff < 16 {
