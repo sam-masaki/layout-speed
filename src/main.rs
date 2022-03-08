@@ -398,7 +398,11 @@ fn init_charmap(layout: &HashMap<String, Key>) -> HashMap<char, Move> {
     res
 }
 
-fn draw_layout(layout: &HashMap<String, Key>, font: &Font, canvas: &mut Canvas<Window>) {
+fn draw_layout(
+    layout: &HashMap<String, Key>,
+    font: &Font,
+    canvas: &mut Canvas<Window>,
+) {
     let w = 50.0;
     let r = 10;
     let color = Color::RGB(0, 0, 255);
@@ -571,7 +575,9 @@ pub fn main() {
             if vis_curtime > pos_keyframe.t {
                 // If current keyframe is not the last
 
-                if vis_pos_keyframes[findex] < abc.fingers.pos[findex].len() as u32 - 1 {
+                if vis_pos_keyframes[findex]
+                    < abc.fingers.pos[findex].len() as u32 - 1
+                {
                     let next_pos = abc.fingers.pos[findex]
                         .get(vis_pos_keyframes[findex] as usize + 1)
                         .unwrap();
@@ -584,7 +590,9 @@ pub fn main() {
                         findex, total_time_diff, cur_time_diff
                     );
 
-                    if total_time_diff < cur_time_diff || total_time_diff - cur_time_diff < 16 {
+                    if total_time_diff < cur_time_diff
+                        || total_time_diff - cur_time_diff < 16
+                    {
                         vis_pos_keyframes[findex] += 1;
                     }
                     if total_time_diff == 0 {
@@ -594,8 +602,10 @@ pub fn main() {
                     let x_diff = next_pos.x - pos_keyframe.x;
                     let y_diff = next_pos.y - pos_keyframe.y;
 
-                    vis_x = prev_x + (x_diff * (cur_time_diff as f32 / total_time_diff as f32));
-                    vis_y = prev_y + (y_diff * (cur_time_diff as f32 / total_time_diff as f32));
+                    vis_x = prev_x
+                        + (x_diff * (cur_time_diff as f32 / total_time_diff as f32));
+                    vis_y = prev_y
+                        + (y_diff * (cur_time_diff as f32 / total_time_diff as f32));
                 } else {
                     vis_x = prev_x;
                     vis_y = prev_y;
