@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-struct Key {
+pub struct Key {
     pressed: char,
     shifted: char,
     // TODO: Looks like I can have polymorphic enums for modifiers, but
@@ -12,16 +12,28 @@ struct Key {
 }
 
 // For drawing key to screen
-struct VisKey {
+pub struct VisKey {
     width: f32,
     height: f32,
 }
 
-struct Layout<'a> {
-    keys: Vec<Key>,
-    str_keys: HashMap<char, &'a Key>,
-    homes: [&'a Key; 10],
+pub struct Layout<'a> {
+    pub keys: Vec<Key>,
+    pub str_keys: HashMap<char, &'a Key>,
+    pub homes: [&'a Key; 10],
 }
+
+pub static DUMMY_KEY: Key = Key {
+    pressed: '\0',
+    shifted: '\0',
+    finger: -1,
+    is_home: false,
+    pos: (0.0, 0.0),
+    visual: VisKey {
+        width: 0.0,
+        height: 0.0,
+    },
+};
 
 // Fill lay with the layout info from path
 fn init<'a>(lay: &'a mut Layout<'a>, path: &str) -> Option<&'a Layout<'a>> {
@@ -77,8 +89,15 @@ fn init<'a>(lay: &'a mut Layout<'a>, path: &str) -> Option<&'a Layout<'a>> {
 
     for key in &lay.keys {
         lay.str_keys.insert(key.pressed, key);
+        lay.str_keys.insert(key.shifted, key);
         if key.is_home && key.finger >= 0 && key.finger < 10 {
             lay.homes[key.finger as usize] = key;
+        }
+    }
+
+    for key in lay.homes {
+        if key.finger < 0 {
+            panic!("Not all home row keys are assigned")
         }
     }
 
