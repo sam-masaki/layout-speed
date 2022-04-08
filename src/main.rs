@@ -14,6 +14,8 @@ use std::ops::Index;
 use std::path::Path;
 use std::time::Duration;
 
+mod layout;
+
 static SCREEN_WIDTH: u32 = 1280;
 static SCREEN_HEIGHT: u32 = 720;
 
