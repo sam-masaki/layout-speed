@@ -409,8 +409,6 @@ fn word_to_moves(word: String, moves: &HashMap<char, Move>) -> Option<Vec<String
 }
 
 pub fn main() {
-    //    let mut disp = display::init("Layout Speed").unwrap();
-    //    let font = display::init_font(&disp.ttf);
     let (context, canvas, ttf) = display::init("Layout Speed").unwrap();
     let font = display::init_font(&ttf);
     let mut disp = display::Data {
@@ -421,8 +419,7 @@ pub fn main() {
     };
 
     // TODO: Think of a better way dealing with Layout.homes
-    // than to temporarily break the invariant that they
-    // always point to real keys. Alternatively make a macro
+    // Not all fingers have a home
     let mut mlay = layout::Layout {
         keys: Vec::new(),
         str_keys: HashMap::new(),
@@ -462,8 +459,6 @@ pub fn main() {
                 _ => {}
             }
         }
-
-        println!("{}", lay.keys.len());
 
         display::draw_layout(lay, &mut disp);
         disp.canvas.present();
