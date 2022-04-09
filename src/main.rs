@@ -9,11 +9,14 @@ use sdl2::ttf::{Font, Sdl2TtfContext};
 use sdl2::video::{Window, WindowContext};
 use sdl2::Sdl;
 use sdl2::VideoSubsystem;
+use std::alloc::Layout;
 use std::collections::HashMap;
-use std::ops::Index;
+use std::ops::{Deref, Index};
 use std::path::Path;
 use std::time::Duration;
 
+mod analyze;
+mod display;
 mod layout;
 
 static SCREEN_WIDTH: u32 = 1280;
@@ -271,19 +274,6 @@ fn init_sdl(title: &str) -> Result<(Sdl, WindowCanvas, Sdl2TtfContext), String> 
     Ok((context, canvas, ttf_context))
 }
 
-fn draw_text(x: i32, y: i32, text: &str, font: &Font, canvas: &mut Canvas<Window>) {
-    let surface = font
-        .render(text)
-        .blended(Color::RGBA(255, 0, 0, 255))
-        .unwrap();
-    let creator = canvas.texture_creator();
-    let texture = creator.create_texture_from_surface(&surface).unwrap();
-
-    let TextureQuery { width, height, .. } = texture.query();
-    let pos = Rect::new(x, y, width, height);
-    canvas.copy(&texture, None, pos).unwrap();
-}
-
 // Read a layout file and parse it into a map from key name to Key
 fn init_layout() -> Option<KeyLayout> {
     let mut reader;
@@ -400,60 +390,6 @@ fn init_charmap(layout: &HashMap<String, Key>) -> HashMap<char, Move> {
     res
 }
 
-fn draw_layout(layout: &HashMap<String, Key>, font: &Font, canvas: &mut Canvas<Window>) {
-    let w = 50.0;
-    let r = 10;
-    let color = Color::RGB(0, 0, 255);
-
-    for (name, key) in layout {
-        canvas
-            .rounded_rectangle(
-                (key.pos.0 * w) as i16,
-                (key.pos.1 * w) as i16,
-                ((key.pos.0 * w) + (w * key.width)) as i16,
-                ((key.pos.1 * w) + w) as i16,
-                r,
-                color,
-            )
-            .unwrap();
-
-        draw_text(
-            (key.pos.0 * w) as i32 + 5,
-            (key.pos.1 * w) as i32 + 5,
-            name,
-            font,
-            canvas,
-        );
-
-        if key.shifted != '\0' {
-            draw_text(
-                (key.pos.0 * w) as i32 + 5,
-                (key.pos.1 * w) as i32 + 17,
-                &String::from(key.shifted),
-                font,
-                canvas,
-            );
-        }
-        draw_text(
-            (key.pos.0 * w) as i32 + 5,
-            (key.pos.1 * w) as i32 + 29,
-            &format!("{}", key.finger),
-            font,
-            canvas,
-        );
-
-        if key.home {
-            draw_text(
-                (key.pos.0 * w) as i32 + 17,
-                (key.pos.1 * w) as i32 + 29,
-                "*",
-                font,
-                canvas,
-            );
-        }
-    }
-}
-
 fn handle_key(keycode: Keycode) {}
 
 fn word_to_moves(word: String, moves: &HashMap<char, Move>) -> Option<Vec<String>> {
@@ -473,6 +409,69 @@ fn word_to_moves(word: String, moves: &HashMap<char, Move>) -> Option<Vec<String
 }
 
 pub fn main() {
+    //    let mut disp = display::init("Layout Speed").unwrap();
+    //    let font = display::init_font(&disp.ttf);
+    let (context, canvas, ttf) = display::init("Layout Speed").unwrap();
+    let font = display::init_font(&ttf);
+    let mut disp = display::Data {
+        context,
+        canvas,
+        ttf: &ttf,
+        font,
+    };
+
+    // TODO: Think of a better way dealing with Layout.homes
+    // than to temporarily break the invariant that they
+    // always point to real keys. Alternatively make a macro
+    let mut mlay = layout::Layout {
+        keys: Vec::new(),
+        str_keys: HashMap::new(),
+        homes: [
+            &layout::DUMMY_KEY,
+            &layout::DUMMY_KEY,
+            &layout::DUMMY_KEY,
+            &layout::DUMMY_KEY,
+            &layout::DUMMY_KEY,
+            &layout::DUMMY_KEY,
+            &layout::DUMMY_KEY,
+            &layout::DUMMY_KEY,
+            &layout::DUMMY_KEY,
+            &layout::DUMMY_KEY,
+        ],
+    };
+
+    let lay = match layout::init(&mut mlay, "qwerty.layout") {
+        Some(l) => l,
+        None => return,
+    };
+
+    let mut curr_time = 0;
+
+    let mut event_pump = disp.context.event_pump().unwrap();
+    'main: loop {
+        disp.canvas.set_draw_color(Color::RGB(0, 0, 0));
+        disp.canvas.clear();
+
+        for event in event_pump.poll_iter() {
+            match event {
+                Event::Quit { .. }
+                | Event::KeyDown {
+                    keycode: Some(Keycode::Escape),
+                    ..
+                } => break 'main,
+                _ => {}
+            }
+        }
+
+        println!("{}", lay.keys.len());
+
+        display::draw_layout(lay, &mut disp);
+        disp.canvas.present();
+        ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
+    }
+}
+
+pub fn old_main() {
     let (context, mut canvas, ttf) = init_sdl("Layout Speed").unwrap();
 
     let font = ttf
@@ -625,7 +624,7 @@ pub fn main() {
 
         //canvas.circle(100, 1, 1, Color::RGB(0, 255, 0)).unwrap();
 
-        draw_layout(&layout.keys, &font, &mut canvas);
+        //draw_layout(&layout.keys, &font, &mut canvas);
 
         canvas.present();
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));

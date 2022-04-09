@@ -1,20 +1,21 @@
 use std::collections::HashMap;
 
 pub struct Key {
-    pressed: char,
-    shifted: char,
+    pub pressed: char,
+    pub shifted: char,
     // TODO: Looks like I can have polymorphic enums for modifiers, but
     // that seems like the kind of rabbit hole I don't need for this proj
-    finger: i16,
-    is_home: bool,
-    pos: (f32, f32),
-    visual: VisKey,
+    pub finger: i16,
+    pub is_home: bool,
+    pub pos: (f32, f32),
+    pub visual: VisKey,
 }
 
 // For drawing key to screen
 pub struct VisKey {
-    width: f32,
-    height: f32,
+    pub width: f32,
+    pub height: f32,
+    pub name: String,
 }
 
 pub struct Layout<'a> {
@@ -32,11 +33,12 @@ pub static DUMMY_KEY: Key = Key {
     visual: VisKey {
         width: 0.0,
         height: 0.0,
+        name: String::new(),
     },
 };
 
 // Fill lay with the layout info from path
-fn init<'a>(lay: &'a mut Layout<'a>, path: &str) -> Option<&'a Layout<'a>> {
+pub fn init<'a>(lay: &'a mut Layout<'a>, path: &str) -> Option<&'a Layout<'a>> {
     let mut reader;
     match csv::ReaderBuilder::new().from_path(path) {
         Ok(r) => reader = r,
@@ -56,11 +58,12 @@ fn init<'a>(lay: &'a mut Layout<'a>, path: &str) -> Option<&'a Layout<'a>> {
             Err(_) => return None,
         };
 
+        let name = record.get(0)?.to_string();
         let pressed = record.get(1)?.chars().next().unwrap_or('\0');
         let shifted = record.get(2)?.chars().next().unwrap_or('\0');
 
         let finger = record.get(3)?.parse::<i16>().unwrap_or(-1);
-        let is_home = record.get(4)?.is_empty();
+        let is_home = !record.get(4)?.is_empty();
 
         // Assume keys continue going right
         let x = record.get(5)?.parse::<f32>().unwrap_or(prev_x + prev_w);
@@ -81,6 +84,7 @@ fn init<'a>(lay: &'a mut Layout<'a>, path: &str) -> Option<&'a Layout<'a>> {
             visual: VisKey {
                 width: w,
                 height: h,
+                name,
             },
         };
 
@@ -92,12 +96,6 @@ fn init<'a>(lay: &'a mut Layout<'a>, path: &str) -> Option<&'a Layout<'a>> {
         lay.str_keys.insert(key.shifted, key);
         if key.is_home && key.finger >= 0 && key.finger < 10 {
             lay.homes[key.finger as usize] = key;
-        }
-    }
-
-    for key in lay.homes {
-        if key.finger < 0 {
-            panic!("Not all home row keys are assigned")
         }
     }
 
