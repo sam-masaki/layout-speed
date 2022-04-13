@@ -7,8 +7,13 @@ pub struct Key {
     // that seems like the kind of rabbit hole I don't need for this proj
     pub finger: i16,
     pub is_home: bool,
-    pub pos: (f32, f32),
+    pub pos: Pos,
     pub visual: VisKey,
+}
+
+pub struct Pos {
+    pub x: f32,
+    pub y: f32,
 }
 
 // For drawing key to screen
@@ -29,7 +34,7 @@ pub static DUMMY_KEY: Key = Key {
     shifted: '\0',
     finger: -1,
     is_home: false,
-    pos: (0.0, 0.0),
+    pos: Pos { x: 0.0, y: 0.0 },
     visual: VisKey {
         width: 0.0,
         height: 0.0,
@@ -80,7 +85,7 @@ pub fn init<'a>(lay: &'a mut Layout<'a>, path: &str) -> Option<&'a Layout<'a>> {
             shifted,
             finger,
             is_home,
-            pos: (x, y),
+            pos: Pos { x, y },
             visual: VisKey {
                 width: w,
                 height: h,
