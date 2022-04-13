@@ -420,22 +420,7 @@ pub fn main() {
 
     // TODO: Think of a better way dealing with Layout.homes
     // Not all fingers have a home
-    let mut mlay = layout::Layout {
-        keys: Vec::new(),
-        str_keys: HashMap::new(),
-        homes: [
-            &layout::DUMMY_KEY,
-            &layout::DUMMY_KEY,
-            &layout::DUMMY_KEY,
-            &layout::DUMMY_KEY,
-            &layout::DUMMY_KEY,
-            &layout::DUMMY_KEY,
-            &layout::DUMMY_KEY,
-            &layout::DUMMY_KEY,
-            &layout::DUMMY_KEY,
-            &layout::DUMMY_KEY,
-        ],
-    };
+    let mut mlay = layout::Layout::default();
 
     let lay = match layout::init(&mut mlay, "qwerty.layout") {
         Some(l) => l,
