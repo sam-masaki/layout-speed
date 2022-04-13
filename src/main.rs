@@ -442,6 +442,9 @@ pub fn main() {
         None => return,
     };
 
+    let tl = analyze::gen_timeline("abc", &lay);
+    analyze::print_timeline(&tl);
+
     let mut curr_time = 0;
 
     let mut event_pump = disp.context.event_pump().unwrap();
