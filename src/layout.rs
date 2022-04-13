@@ -29,6 +29,19 @@ pub struct Layout<'a> {
     pub homes: [&'a Key; 10],
 }
 
+impl<'a> Default for Layout<'a> {
+    fn default() -> Self {
+        Self {
+            keys: Vec::new(),
+            str_keys: HashMap::new(),
+            homes: [
+                &DUMMY_KEY, &DUMMY_KEY, &DUMMY_KEY, &DUMMY_KEY, &DUMMY_KEY, &DUMMY_KEY, &DUMMY_KEY,
+                &DUMMY_KEY, &DUMMY_KEY, &DUMMY_KEY,
+            ],
+        }
+    }
+}
+
 pub static DUMMY_KEY: Key = Key {
     pressed: '\0',
     shifted: '\0',
@@ -105,4 +118,92 @@ pub fn init<'a>(lay: &'a mut Layout<'a>, path: &str) -> Option<&'a Layout<'a>> {
     }
 
     Some(lay)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sizes() {
+        let mut lay = Layout::default();
+
+        let lay = match init(&mut lay, "test/size.layout") {
+            Some(l) => l,
+            None => return,
+        };
+
+        // Check keys don't overlapping based on width
+        assert_eq!(lay.str_keys.get(&'d').unwrap().pos.x, 9.5);
+        assert_eq!(lay.str_keys.get(&'h').unwrap().pos.x, 7.5);
+
+        // Check sizes
+        assert_eq!(lay.str_keys.get(&'a').unwrap().visual.height, 1.0);
+        assert_eq!(lay.str_keys.get(&'a').unwrap().visual.width, 1.5);
+        assert_eq!(lay.str_keys.get(&'f').unwrap().visual.height, 1.0);
+        assert_eq!(lay.str_keys.get(&'f').unwrap().visual.width, 3.0);
+        assert_eq!(lay.str_keys.get(&'d').unwrap().visual.height, 2.0);
+    }
+
+    #[test]
+    // Shifted and unshifted point to the same key
+    fn test_str_keys() {
+        let mut lay = Layout::default();
+
+        let lay = match init(&mut lay, "test/str_keys.layout") {
+            Some(l) => l,
+            None => return,
+        };
+
+        assert!(std::ptr::eq(
+            *lay.str_keys.get(&'a').unwrap(),
+            *lay.str_keys.get(&'A').unwrap()
+        ));
+        assert!(std::ptr::eq(
+            *lay.str_keys.get(&'=').unwrap(),
+            *lay.str_keys.get(&'%').unwrap()
+        ));
+    }
+
+    #[test]
+    fn test_properties() {
+        let mut lay = Layout::default();
+
+        let lay = match init(&mut lay, "test/properties.layout") {
+            Some(l) => l,
+            None => return,
+        };
+
+        let c = lay.str_keys.get(&'A').unwrap();
+        assert_eq!(c.visual.name, "key0");
+        assert_eq!(c.pressed, 'a');
+        assert_eq!(c.shifted, 'A');
+        assert_eq!(c.finger, 2);
+        assert!(c.is_home);
+        assert_eq!(c.pos.x, 2.0);
+        assert_eq!(c.pos.y, 3.0);
+        assert_eq!(c.visual.width, 3.0);
+        assert_eq!(c.visual.height, 2.5);
+    }
+
+    #[test]
+    fn test_homes() {
+        let mut lay = Layout::default();
+
+        let lay = match init(&mut lay, "test/homes.layout") {
+            Some(l) => l,
+            None => return,
+        };
+
+        assert_eq!(lay.homes[0].visual.name, "a");
+        assert_eq!(lay.homes[1].visual.name, "s");
+        assert_eq!(lay.homes[2].visual.name, "d");
+        assert_eq!(lay.homes[3].visual.name, "f");
+        assert!(std::ptr::eq(lay.homes[4], &DUMMY_KEY));
+        assert!(std::ptr::eq(lay.homes[5], &DUMMY_KEY));
+        assert_eq!(lay.homes[6].visual.name, "j");
+        assert_eq!(lay.homes[7].visual.name, "k");
+        assert_eq!(lay.homes[8].visual.name, "l");
+        assert_eq!(lay.homes[9].visual.name, "semicolon");
+    }
 }

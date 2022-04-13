@@ -1,0 +1,11 @@
+name,unshifted,shifted,finger,home,x,y,width,height
+a,a,A,0,*,0,0,,
+s,s,S,1,*,,,,
+d,d,D,2,*,,,,
+f,f,F,3,*,,,,
+g,g,G,3,,,,,
+h,h,H,6,,,,,
+j,j,J,6,*,,,,
+k,k,K,7,*,,,,
+l,l,L,8,*,,,,
+semicolon,;,:,9,*,,,,
