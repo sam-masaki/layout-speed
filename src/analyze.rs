@@ -10,21 +10,6 @@ pub struct Keyframe {
     pub start_press: bool,
 }
 
-fn string_to_seq<'a>(string: &str, lay: &'a layout::Layout) -> Vec<&'a layout::Key> {
-    let mut res = Vec::new();
-
-    for c in string.chars() {
-        let key = match lay.str_keys.get(&c) {
-            Some(k) => *k,
-            None => continue,
-        };
-
-        res.push(key);
-    }
-
-    res
-}
-
 pub fn gen_timeline<'a>(string: &str, lay: &'a layout::Layout) -> Timeline {
     // May want a different data structure for generating vs playback
     let mut fingers = [
