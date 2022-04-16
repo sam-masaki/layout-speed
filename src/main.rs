@@ -420,14 +420,14 @@ pub fn main() {
 
     // TODO: Think of a better way dealing with Layout.homes
     // Not all fingers have a home
-    let mut mlay = layout::Layout::default();
+    let mut lay = layout::Layout::default();
 
-    let lay = match layout::init(&mut mlay, "qwerty.layout") {
+    let lay = match layout::init(&mut lay, "qwerty.layout") {
         Some(l) => l,
         None => return,
     };
 
-    let tl = analyze::gen_timeline("abc", &lay);
+    let tl = analyze::gen_timeline("abc", lay);
     analyze::print_timeline(&tl);
 
     let mut curr_time = 0;
