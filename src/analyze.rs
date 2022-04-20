@@ -8,6 +8,7 @@ pub struct Keyframe {
   pub pos: layout::Pos,
   pub time: i32,
   pub start_press: bool,
+  on_char: char,
 }
 
 pub fn gen_timeline<'a>(string: &str, lay: &'a layout::Layout) -> Timeline {
@@ -33,6 +34,7 @@ pub fn gen_timeline<'a>(string: &str, lay: &'a layout::Layout) -> Timeline {
       },
       time: 0,
       start_press: false,
+      on_char: lay.homes[i].pressed,
     });
   }
 
@@ -49,7 +51,11 @@ pub fn gen_timeline<'a>(string: &str, lay: &'a layout::Layout) -> Timeline {
     let home_key = lay.homes[findex];
     let prev_frame = fingers[findex].last().unwrap();
 
-    let start_move_time = min_press;
+    let start_move_time = if min_press > prev_frame.time {
+      min_press
+    } else {
+      prev_frame.time
+    };
     let start_press_time = start_move_time + move_time(&prev_frame.pos, &key.pos);
     let end_press_time = start_press_time + 250;
     let end_move_time = end_press_time + move_time(&key.pos, &home_key.pos);
@@ -61,6 +67,7 @@ pub fn gen_timeline<'a>(string: &str, lay: &'a layout::Layout) -> Timeline {
       },
       time: start_move_time,
       start_press: false,
+      on_char: prev_frame.on_char,
     };
     let start_press = Keyframe {
       pos: layout::Pos {
@@ -69,6 +76,7 @@ pub fn gen_timeline<'a>(string: &str, lay: &'a layout::Layout) -> Timeline {
       },
       time: start_press_time,
       start_press: true,
+      on_char: key.pressed,
     };
     let end_press = Keyframe {
       pos: layout::Pos {
@@ -77,6 +85,7 @@ pub fn gen_timeline<'a>(string: &str, lay: &'a layout::Layout) -> Timeline {
       },
       time: end_press_time,
       start_press: false,
+      on_char: key.pressed,
     };
     let end_move = Keyframe {
       pos: layout::Pos {
@@ -85,6 +94,7 @@ pub fn gen_timeline<'a>(string: &str, lay: &'a layout::Layout) -> Timeline {
       },
       time: end_move_time,
       start_press: false,
+      on_char: home_key.pressed,
     };
 
     fingers[findex].push(start_move);
@@ -92,7 +102,7 @@ pub fn gen_timeline<'a>(string: &str, lay: &'a layout::Layout) -> Timeline {
     fingers[findex].push(end_press);
     fingers[findex].push(end_move);
 
-    min_press = end_move_time;
+    min_press = end_press_time;
   }
 
   Timeline { fingers }
@@ -123,12 +133,22 @@ fn move_time(start: &layout::Pos, end: &layout::Pos) -> i32 {
 mod tests {
   use super::*;
 
-  fn common_invariants(tl: &Timeline) {
+  fn common_invariants(tl: &Timeline, string: &str) {
     for i in 0..10 {
       let mut prev_time = 0;
+      let mut curr_char = 0;
       for kf in &tl.fingers[i] {
         assert!(kf.time >= prev_time, "A keyframe goes backwards in time");
         prev_time = kf.time;
+
+        if kf.start_press {
+          assert_eq!(
+            kf.on_char,
+            string.chars().nth(curr_char).unwrap(),
+            "A key is pressed out of order"
+          );
+          curr_char += 1;
+        }
       }
     }
   }
@@ -139,7 +159,8 @@ mod tests {
     let mut lay = layout::Layout::default();
     let lay = layout::init(&mut lay, "qwerty.layout").unwrap();
 
-    let tl = gen_timeline("rg", lay);
-    common_invariants(&tl);
+    let text = "rgvf";
+    let tl = gen_timeline(text, lay);
+    common_invariants(&tl, text);
   }
 }
