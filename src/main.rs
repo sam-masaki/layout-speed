@@ -428,7 +428,7 @@ pub fn main() {
     None => return,
   };
 
-  let tl = analyze::gen_timeline("rg", lay);
+  let tl = analyze::gen_timeline("qwert yuiop", lay);
   analyze::print_timeline(&tl);
 
   let mut playhead = playback::Playhead {

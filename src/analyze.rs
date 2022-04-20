@@ -92,7 +92,7 @@ pub fn gen_timeline<'a>(string: &str, lay: &'a layout::Layout) -> Timeline {
     fingers[findex].push(end_press);
     fingers[findex].push(end_move);
 
-    min_press = end_press_time;
+    min_press = end_move_time;
   }
 
   Timeline { fingers }
@@ -117,4 +117,29 @@ fn move_time(start: &layout::Pos, end: &layout::Pos) -> i32 {
   let dist = (x_diff.powi(2) + y_diff.powi(2)).sqrt();
 
   std::cmp::max((dist * 250.0) as i32, 250)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  fn common_invariants(tl: &Timeline) {
+    for i in 0..10 {
+      let mut prev_time = 0;
+      for kf in &tl.fingers[i] {
+        assert!(kf.time >= prev_time, "A keyframe goes backwards in time");
+        prev_time = kf.time;
+      }
+    }
+  }
+
+  #[test]
+  fn one_finger() {
+    // Test back to back single-finger movement
+    let mut lay = layout::Layout::default();
+    let lay = layout::init(&mut lay, "qwerty.layout").unwrap();
+
+    let tl = gen_timeline("rg", lay);
+    common_invariants(&tl);
+  }
 }
