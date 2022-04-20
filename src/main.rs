@@ -18,6 +18,7 @@ use std::time::Duration;
 mod analyze;
 mod display;
 mod layout;
+mod playback;
 
 static SCREEN_WIDTH: u32 = 1280;
 static SCREEN_HEIGHT: u32 = 720;
@@ -427,8 +428,15 @@ pub fn main() {
     None => return,
   };
 
-  let tl = analyze::gen_timeline("abc", lay);
+  let tl = analyze::gen_timeline("rg", lay);
   analyze::print_timeline(&tl);
+
+  let mut playhead = playback::Playhead {
+    time: 0,
+    idxs: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  };
+
+  let mut playdata = playback::PlayData::default();
 
   let mut curr_time = 0;
 
@@ -448,7 +456,11 @@ pub fn main() {
       }
     }
 
+    playback::calc_playback(&playhead, &tl, &mut playdata);
+    playback::inc_head(&mut playhead, &tl, 16);
+
     display::draw_layout(lay, &mut disp);
+    display::draw_playdata(&playdata, &mut disp);
     disp.canvas.present();
     ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
   }

@@ -1,4 +1,5 @@
 use super::layout;
+use super::playback;
 use sdl2::gfx::primitives::DrawRenderer;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
@@ -61,6 +62,19 @@ fn draw_text(x: i32, y: i32, text: &str, data: &mut Data) {
   let TextureQuery { width, height, .. } = texture.query();
   let pos = Rect::new(x, y, width, height);
   data.canvas.copy(&texture, None, pos).unwrap();
+}
+
+pub fn draw_playdata(playdata: &playback::PlayData, disp_data: &mut Data) {
+  for i in 0..10 {
+    let finger = &playdata.fingers[i];
+    let x = ((finger.pos.x * KEY_W) + (KEY_H / 2.0)) as i16;
+    let y = ((finger.pos.y * KEY_H) + (KEY_H / 2.0)) as i16;
+
+    disp_data.canvas.circle(x, y, 10, KEY_COL).unwrap();
+    if finger.pressing {
+      disp_data.canvas.circle(x, y, 15, KEY_COL).unwrap();
+    }
+  }
 }
 
 pub fn draw_layout(lay: &layout::Layout, data: &mut Data) {
