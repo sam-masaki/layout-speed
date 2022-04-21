@@ -144,26 +144,85 @@ fn move_time(start: &layout::Pos, end: &layout::Pos) -> i32 {
 mod tests {
   use super::*;
 
-  fn common_invariants(tl: &Timeline, string: &str) {
-    for i in 0..10 {
-      let mut prev_time = 0;
-      let mut curr_char = 0;
-      for kf in &tl.fingers[i] {
-        assert!(kf.time >= prev_time, "A keyframe goes backwards in time");
-        prev_time = kf.time;
+  // Turn a timeline into a flat list of Vec<Keyframes> for testing
+  // Multiple Keyframes at the same time are put into the same inner Vec<>
+  // Not very memory efficient, but for testing it's fine
+  fn flatten_timeline(tl: &Timeline) -> Vec<Vec<Keyframe>> {
+    let mut earliest_time = i32::MAX;
+    let mut earliest_indices = Vec::new();
 
-        // FIXME: This doesn't work because it's going through each
-        // finger individually. Need a utility function for turning a
-        // Timeline into a flat list of KeyFrames
-        if kf.start_press {
+    let mut finger_frontier = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+    let mut flattened = Vec::new();
+
+    // Loop through all 10 fingers and find the earliest frames
+    'outer: loop {
+      let mut this_frame = Vec::new();
+      let mut frames_left = false;
+      for i in 0..10 {
+        if tl.fingers[i].len() > finger_frontier[i] {
+          if tl.fingers[i][finger_frontier[i]].time < earliest_time {
+            frames_left = true;
+
+            earliest_time = tl.fingers[i][finger_frontier[i]].time;
+            earliest_indices.clear();
+            earliest_indices.push(i);
+          } else if tl.fingers[i][finger_frontier[i]].time == earliest_time {
+            earliest_indices.push(i);
+          }
+        }
+      }
+      if !frames_left {
+        break 'outer;
+      }
+
+      // Copy every frame that occured at earliest_time milliseconds
+      for idx in &earliest_indices {
+        let original = &tl.fingers[*idx][finger_frontier[*idx]];
+        this_frame.push(Keyframe {
+          pos: layout::Pos {
+            x: original.pos.x,
+            y: original.pos.y,
+          },
+          time: original.time,
+          start_press: original.start_press,
+          on_char: original.on_char,
+        });
+        finger_frontier[*idx] += 1;
+      }
+
+      flattened.push(this_frame);
+
+      earliest_time = i32::MAX;
+    }
+
+    flattened
+  }
+
+  fn common_invariants(tl: &Timeline, string: &str) {
+    let flat = flatten_timeline(tl);
+
+    let mut prev_time = 0;
+    let mut curr_char = 0;
+    for moment in flat {
+      let new_time = moment.first().unwrap().time;
+      assert!(new_time >= prev_time, "A keyframe went backwards in time");
+
+      for frame in moment {
+        // Note: this assumes there won't be multiple presses at the
+        // same time. For now this is true, and this shouldn't have to
+        // change when I add key combos
+        if frame.start_press {
           assert_eq!(
-            kf.on_char,
+            frame.on_char,
             string.chars().nth(curr_char).unwrap(),
-            "A key is pressed out of order"
+            "A key was pressed out of order"
           );
           curr_char += 1;
         }
       }
+
+      prev_time = new_time;
     }
   }
 
@@ -180,14 +239,13 @@ mod tests {
 
   #[test]
   fn moveless_text() {
-    // Test text that's all on the home row
+    // Test text that is all on the home row
     let mut lay = layout::Layout::default();
     let lay = layout::init(&mut lay, "qwerty.layout").unwrap();
 
     let text = "asdf jkl;";
     let tl = gen_timeline(text, lay);
-    // TODO: after fixing, check this again
-    //common_invariants(&tl, text);
+    common_invariants(&tl, text);
 
     let mut prev_press_end = 0;
     for i in 0..10 {
