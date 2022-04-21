@@ -18,8 +18,6 @@ pub fn main() {
     font,
   };
 
-  // TODO: Think of a better way dealing with Layout.homes
-  // Not all fingers have a home
   let mut lay = layout::Layout::default();
 
   let lay = match layout::init(&mut lay, "qwerty.layout") {
@@ -36,8 +34,6 @@ pub fn main() {
   };
 
   let mut playdata = playback::PlayData::default();
-
-  let mut curr_time = 0;
 
   let mut event_pump = disp.context.event_pump().unwrap();
   'main: loop {
