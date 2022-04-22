@@ -50,7 +50,7 @@ pub fn init_font(ttf: &Sdl2TtfContext) -> Font {
     .unwrap()
 }
 
-fn draw_text(x: i32, y: i32, text: &str, data: &mut Data) {
+pub fn draw_text(x: i32, y: i32, text: &str, data: &mut Data) {
   let surface = data
     .font
     .render(text)
