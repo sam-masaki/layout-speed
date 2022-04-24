@@ -1,12 +1,17 @@
+use rayon::{iter::ParallelIterator, str::ParallelString};
+
 use super::layout;
 
+#[derive(Default)]
 pub struct Timeline {
   pub fingers: [Vec<Keyframe>; 10],
-  // Total distance covered by all fingers in u
-  pub total_dist: f32,
+  pub finger_usage: [f32; 10], // fraction of presses
+  pub total_time: i32,
+  pub total_dist: f32, // in u
   pub wpm: u16,
 }
 
+#[derive(Clone, Copy)]
 pub struct Keyframe {
   pub pos: layout::Pos,
   pub time: i32,
@@ -31,6 +36,8 @@ pub fn gen_timeline<'a>(string: &str, lay: &'a layout::Layout) -> Timeline {
     Vec::new(),
   ];
 
+  let mut finger_usage_cnt = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
   for i in 0..10 {
     fingers[i].push(Keyframe {
       pos: layout::Pos {
@@ -47,6 +54,7 @@ pub fn gen_timeline<'a>(string: &str, lay: &'a layout::Layout) -> Timeline {
 
   // The next press must start at or after min_press
   let mut min_press = 0;
+  let mut total_time = 0;
 
   for c in string.chars() {
     let key = match lay.str_keys.get(&c) {
@@ -55,8 +63,13 @@ pub fn gen_timeline<'a>(string: &str, lay: &'a layout::Layout) -> Timeline {
     };
     let findex = key.finger as usize;
 
+    finger_usage_cnt[findex] += 1;
+
     let home_key = lay.homes[findex];
     let prev_frame = fingers[findex].last().unwrap();
+
+    total_dist += move_dist(&prev_frame.pos, &key.pos);
+    total_dist += move_dist(&key.pos, &home_key.pos);
 
     let start_move_dur = move_time(&prev_frame.pos, &key.pos);
     // Only add starting keyframe if the finger has been at rest since
@@ -68,7 +81,6 @@ pub fn gen_timeline<'a>(string: &str, lay: &'a layout::Layout) -> Timeline {
         start_press: false,
         on_char: prev_frame.on_char,
       };
-      total_dist += move_dist(&prev_frame.pos, &key.pos);
       fingers[findex].push(start_move);
 
       min_press
@@ -102,10 +114,10 @@ pub fn gen_timeline<'a>(string: &str, lay: &'a layout::Layout) -> Timeline {
       start_press: false,
       on_char: home_key.pressed,
     };
-    total_dist += move_dist(&key.pos, &home_key.pos);
     fingers[findex].push(end_move);
 
     min_press = time_end_press;
+    total_time = time_end_move;
   }
 
   let word_count = string.split(' ').count() as f32;
@@ -113,6 +125,8 @@ pub fn gen_timeline<'a>(string: &str, lay: &'a layout::Layout) -> Timeline {
 
   Timeline {
     fingers,
+    finger_usage: finger_usage_cnt.map(|c| (c as f32) / (string.len() as f32)),
+    total_time,
     total_dist,
     wpm,
   }
@@ -128,6 +142,20 @@ pub fn print_timeline(tl: &Timeline) {
       );
     }
   }
+}
+
+// TODO: Make this useful. Probably want this to be for generating
+// stats for different layouts on large texts. Don't need visuals for
+// that, so have this just build chunks of finger-less Timelines and
+// stitch that together
+pub fn gen_timeline_parallel<'a>(
+  string: &'a str,
+  lay: &layout::Layout,
+) -> Vec<Timeline> {
+  string
+    .par_lines()
+    .map(|line| gen_timeline(line, lay))
+    .collect()
 }
 
 fn move_dist(start: &layout::Pos, end: &layout::Pos) -> f32 {

@@ -8,3 +8,4 @@ edition = "2018"
 [dependencies]
 sdl2 = { version = "0.34.5", features = ["ttf", "gfx"] }
 csv = "1.1"
+rayon = "1.*"
