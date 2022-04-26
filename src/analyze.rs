@@ -175,7 +175,7 @@ mod tests {
 
   // Turn a timeline into a flat list of Vec<Keyframes> for testing
   // Multiple Keyframes at the same time are put into the same inner Vec<>
-  // Not very memory efficient, but for testing it's fine
+  // Not very efficient, but for testing it's fine
   fn flatten_timeline(tl: &Timeline) -> Vec<Vec<Keyframe>> {
     let mut earliest_time = i32::MAX;
     let mut earliest_indices = Vec::new();
