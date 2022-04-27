@@ -36,8 +36,8 @@ impl<'a> Default for Layout<'a> {
       keys: Vec::new(),
       str_keys: HashMap::new(),
       homes: [
-        &DUMMY_KEY, &DUMMY_KEY, &DUMMY_KEY, &DUMMY_KEY, &DUMMY_KEY, &DUMMY_KEY,
-        &DUMMY_KEY, &DUMMY_KEY, &DUMMY_KEY, &DUMMY_KEY,
+        &DUMMY_KEY, &DUMMY_KEY, &DUMMY_KEY, &DUMMY_KEY, &DUMMY_KEY, &DUMMY_KEY, &DUMMY_KEY,
+        &DUMMY_KEY, &DUMMY_KEY, &DUMMY_KEY,
       ],
     }
   }

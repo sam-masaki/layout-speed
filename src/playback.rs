@@ -19,11 +19,7 @@ pub struct PlayData {
 
 // Calculate where each finger is positioned, and its pressing state
 // based on head
-pub fn calc_playback(
-  head: &Playhead,
-  timeline: &analyze::Timeline,
-  data: &mut PlayData,
-) {
+pub fn calc_playback(head: &Playhead, timeline: &analyze::Timeline, data: &mut PlayData) {
   // finger will be somewhere between [idx] and [idx + 1]
   for i in 0..10 {
     let prev_frame = &timeline.fingers[i][head.idxs[i]];
@@ -37,9 +33,8 @@ pub fn calc_playback(
 
     // Percent of the move to next_frame we have completed
     // head.time will always be < next_frame.time so no divide by zero
-    let time_ratio = 1.0
-      - (((next_frame.time - head.time) as f32)
-        / ((next_frame.time - prev_frame.time) as f32));
+    let time_ratio =
+      1.0 - (((next_frame.time - head.time) as f32) / ((next_frame.time - prev_frame.time) as f32));
     let x_diff = next_frame.pos.x - prev_frame.pos.x;
     let y_diff = next_frame.pos.y - prev_frame.pos.y;
 

@@ -1,6 +1,7 @@
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::Color;
+use std::env;
 use std::time::Duration;
 
 mod analyze;
@@ -9,6 +10,59 @@ mod layout;
 mod playback;
 
 pub fn main() {
+  let raw_args: Vec<String> = env::args().collect();
+  let args = parse_args(&raw_args);
+
+  let mut lay_path = "qwerty.layout".to_string();
+  let mut text = "no args used".to_string();
+  let mut anim = true;
+  for opt in args {
+    match opt.0.as_str() {
+      "-l" => lay_path = opt.1,
+      "-t" => text = opt.1,
+      "-n" => anim = false,
+      x => println!("Unknown option: {}", x),
+    }
+  }
+
+  if anim {
+    play_anim(&lay_path, &text);
+  } else {
+    get_stats(&lay_path, &text);
+  }
+}
+
+fn parse_args(args: &[String]) -> Vec<(String, String)> {
+  let mut res = Vec::new();
+
+  // TODO: make this better
+  let mut i = 1;
+  while i < args.len() {
+    if i + 1 < args.len() {
+      res.push((args[i].clone(), args[i + 1].clone()));
+      i += 2;
+    } else {
+      res.push((args[i].clone(), args[i].clone()));
+      break;
+    }
+  }
+
+  res
+}
+
+fn get_stats(lay_path: &str, text: &str) {
+  let mut lay = layout::Layout::default();
+
+  let lay = match layout::init(&mut lay, lay_path) {
+    Some(l) => l,
+    None => return
+  };
+
+  let tl = analyze::gen_timeline_parallel(text, lay);
+  analyze::print_timeline(&tl);
+}
+
+fn play_anim(lay_path: &str, text: &str) {
   let (context, canvas, ttf) = display::init("Layout Speed").unwrap();
   let font = display::init_font(&ttf);
   let mut disp = display::Data {
@@ -20,12 +74,12 @@ pub fn main() {
 
   let mut lay = layout::Layout::default();
 
-  let lay = match layout::init(&mut lay, "qwerty.layout") {
+  let lay = match layout::init(&mut lay, lay_path) {
     Some(l) => l,
     None => return,
   };
 
-  let tl = analyze::gen_timeline("qwert yuiop", lay);
+  let tl = analyze::gen_timeline(text, true, lay);
   analyze::print_timeline(&tl);
 
   let mut playhead = playback::Playhead {
@@ -56,6 +110,8 @@ pub fn main() {
 
     display::draw_layout(lay, &mut disp);
     display::draw_playdata(&playdata, &mut disp);
+
+    display::draw_text(10, 250, text, &mut disp);
     display::draw_text(
       10,
       275,

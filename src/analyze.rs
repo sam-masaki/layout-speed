@@ -11,7 +11,7 @@ pub struct Timeline {
   pub wpm: u16,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Default, Clone, Copy)]
 pub struct Keyframe {
   pub pos: layout::Pos,
   pub time: i32,
@@ -21,8 +21,7 @@ pub struct Keyframe {
 
 static PRESS_DUR: i32 = 250;
 
-pub fn gen_timeline<'a>(string: &str, lay: &'a layout::Layout) -> Timeline {
-  // May want a different data structure for generating vs playback
+pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -> Timeline {
   let mut fingers = [
     Vec::new(),
     Vec::new(),
@@ -72,49 +71,58 @@ pub fn gen_timeline<'a>(string: &str, lay: &'a layout::Layout) -> Timeline {
     total_dist += move_dist(&key.pos, &home_key.pos);
 
     let start_move_dur = move_time(&prev_frame.pos, &key.pos);
-    // Only add starting keyframe if the finger has been at rest since
-    // its last move
-    let time_start_move = if min_press > prev_frame.time {
-      let start_move = Keyframe {
-        pos: prev_frame.pos,
-        time: min_press,
-        start_press: false,
-        on_char: prev_frame.on_char,
-      };
-      fingers[findex].push(start_move);
-
-      min_press
-    } else {
-      prev_frame.time
-    };
-
+    let time_start_move = std::cmp::max(min_press, prev_frame.time);
     let time_start_press = time_start_move + start_move_dur;
-    let start_press = Keyframe {
-      pos: key.pos,
-      time: time_start_press,
-      start_press: true,
-      on_char: key.pressed,
-    };
-    fingers[findex].push(start_press);
-
     let time_end_press = time_start_press + PRESS_DUR;
-    let end_press = Keyframe {
-      pos: key.pos,
-      time: time_end_press,
-      start_press: false,
-      on_char: key.pressed,
-    };
-    fingers[findex].push(end_press);
 
     let end_move_dur = move_time(&key.pos, &home_key.pos);
     let time_end_move = time_end_press + end_move_dur;
-    let end_move = Keyframe {
-      pos: home_key.pos,
-      time: time_end_move,
-      start_press: false,
-      on_char: home_key.pressed,
-    };
-    fingers[findex].push(end_move);
+
+    if gen_anim {
+      // Only add starting keyframe if the finger has been at rest since
+      // its last move
+      if time_start_move != prev_frame.time {
+        let start_move = Keyframe {
+          pos: prev_frame.pos,
+          time: min_press,
+          start_press: false,
+          on_char: prev_frame.on_char,
+        };
+        fingers[findex].push(start_move);
+      }
+
+      let start_press = Keyframe {
+        pos: key.pos,
+        time: time_start_press,
+        start_press: true,
+        on_char: key.pressed,
+      };
+      fingers[findex].push(start_press);
+
+      let end_press = Keyframe {
+        pos: key.pos,
+        time: time_end_press,
+        start_press: false,
+        on_char: key.pressed,
+      };
+      fingers[findex].push(end_press);
+
+      let end_move = Keyframe {
+        pos: home_key.pos,
+        time: time_end_move,
+        start_press: false,
+        on_char: home_key.pressed,
+      };
+      fingers[findex].push(end_move);
+    } else {
+      // The anim-less mode still relies on the last keyframe
+      fingers[findex][0] = Keyframe {
+        pos: home_key.pos,
+        time: time_end_move,
+        start_press: false,
+        on_char: home_key.pressed,
+      };
+    }
 
     min_press = time_end_press;
     total_time = time_end_move;
@@ -135,31 +143,68 @@ pub fn gen_timeline<'a>(string: &str, lay: &'a layout::Layout) -> Timeline {
 pub fn print_timeline(tl: &Timeline) {
   for i in 0..10 {
     println!("Finger {}", i);
+    println!("  Usage %: {}", tl.finger_usage[i]);
     for kf in &tl.fingers[i] {
       println!(
-        "{}, {}, {}ms, {}",
+        "    {}, {}, {}ms, {}",
         kf.pos.x, kf.pos.y, kf.time, kf.start_press
       );
     }
   }
+
+  println!(
+    "Total distance covered: {}u, {}mm",
+    tl.total_dist,
+    tl.total_dist * 19.05
+  );
+  println!("Total time {}", tl.total_time);
+  println!("WPM: {}", tl.wpm);
 }
 
 // TODO: Make this useful. Probably want this to be for generating
-// stats for different layouts on large texts. Don't need visuals for
-// that, so have this just build chunks of finger-less Timelines and
-// stitch that together
-pub fn gen_timeline_parallel<'a>(
-  string: &'a str,
-  lay: &layout::Layout,
-) -> Vec<Timeline> {
-  string
+// stats for different layouts on large texts.
+pub fn gen_timeline_parallel<'a>(string: &'a str, lay: &layout::Layout) -> Timeline {
+  let coll: Vec<Timeline> = string
     .par_lines()
-    .map(|line| gen_timeline(line, lay))
-    .collect()
+    .map(|line| gen_timeline(line, false, lay))
+    .collect();
+
+  let mut res = Timeline {
+    fingers: [
+      Vec::new(),
+      Vec::new(),
+      Vec::new(),
+      Vec::new(),
+      Vec::new(),
+      Vec::new(),
+      Vec::new(),
+      Vec::new(),
+      Vec::new(),
+      Vec::new(),
+    ],
+    finger_usage: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    total_time: 0,
+    total_dist: 0.0,
+    wpm: 0,
+  };
+
+  for tl in coll {
+    for i in 0..10 {
+      res.finger_usage[i] += tl.finger_usage[i];
+    }
+
+    res.total_time += tl.total_time;
+    res.total_dist += tl.total_dist;
+    // TODO: fix this
+    res.wpm += tl.wpm;
+  }
+
+  res
 }
 
 fn move_dist(start: &layout::Pos, end: &layout::Pos) -> f32 {
   let x_diff = start.x - end.x;
+
   let y_diff = start.y - end.y;
 
   (x_diff.powi(2) + y_diff.powi(2)).sqrt()
@@ -262,7 +307,7 @@ mod tests {
     let lay = layout::init(&mut lay, "qwerty.layout").unwrap();
 
     let text = "rgvf";
-    let tl = gen_timeline(text, lay);
+    let tl = gen_timeline(text, true, lay);
     common_invariants(&tl, text);
   }
 
@@ -273,7 +318,7 @@ mod tests {
     let lay = layout::init(&mut lay, "qwerty.layout").unwrap();
 
     let text = "asdf jkl;";
-    let tl = gen_timeline(text, lay);
+    let tl = gen_timeline(text, true, lay);
     common_invariants(&tl, text);
 
     let mut prev_press_end = 0;
@@ -294,7 +339,7 @@ mod tests {
     let lay = layout::init(&mut lay, "qwerty.layout").unwrap();
 
     let text = "qxevy,o/";
-    let tl = gen_timeline(text, lay);
+    let tl = gen_timeline(text, true, lay);
 
     for i in 0..10 {
       assert_eq!(tl.fingers[i].last().unwrap().pos.x, lay.homes[i].pos.x);
