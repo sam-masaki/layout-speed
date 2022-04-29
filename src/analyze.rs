@@ -1,3 +1,5 @@
+use std::io::Read;
+
 use rayon::{iter::ParallelIterator, str::ParallelString};
 
 use super::layout;
@@ -58,7 +60,7 @@ pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -
   for c in string.chars() {
     let key = match lay.str_keys.get(&c) {
       Some(k) => k,
-      None => panic!(),
+      None => continue,
     };
     let findex = key.finger as usize;
 
@@ -161,9 +163,21 @@ pub fn print_timeline(tl: &Timeline) {
   println!("WPM: {}", tl.wpm);
 }
 
+pub fn gen_timeline_file(path: &String, lay: &layout::Layout) -> Timeline {
+  let mut file = match std::fs::File::open(path) {
+    Ok(f) => f,
+    Err(_) => panic!("file problem"),
+  };
+
+  let mut text = String::new();
+  file.read_to_string(&mut text).unwrap();
+
+  gen_timeline_parallel(text.as_str(), lay)
+}
+
 // TODO: Make this useful. Probably want this to be for generating
 // stats for different layouts on large texts.
-pub fn gen_timeline_parallel<'a>(string: &'a str, lay: &layout::Layout) -> Timeline {
+fn gen_timeline_parallel<'a>(string: &'a str, lay: &layout::Layout) -> Timeline {
   let coll: Vec<Timeline> = string
     .par_lines()
     .map(|line| gen_timeline(line, false, lay))
@@ -189,14 +203,13 @@ pub fn gen_timeline_parallel<'a>(string: &'a str, lay: &layout::Layout) -> Timel
   };
 
   for tl in coll {
+    // TODO: fix all of this
     for i in 0..10 {
       res.finger_usage[i] += tl.finger_usage[i];
     }
 
     res.total_time += tl.total_time;
     res.total_dist += tl.total_dist;
-    // TODO: fix this
-    res.wpm += tl.wpm;
   }
 
   res

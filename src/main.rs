@@ -14,12 +14,14 @@ pub fn main() {
   let args = parse_args(&raw_args);
 
   let mut lay_path = "qwerty.layout".to_string();
-  let mut text = "no args used".to_string();
+  let mut text: Option<String> = None;
+  let mut file_path: Option<String> = None;
   let mut anim = true;
   for opt in args {
     match opt.0.as_str() {
       "-l" => lay_path = opt.1,
-      "-t" => text = opt.1,
+      "-t" => text = Some(opt.1),
+      "-f" => file_path = Some(opt.1),
       "-n" => anim = false,
       x => println!("Unknown option: {}", x),
     }
@@ -28,7 +30,7 @@ pub fn main() {
   if anim {
     play_anim(&lay_path, &text);
   } else {
-    get_stats(&lay_path, &text);
+    get_stats(&lay_path, &text, &file_path);
   }
 }
 
@@ -50,7 +52,8 @@ fn parse_args(args: &[String]) -> Vec<(String, String)> {
   res
 }
 
-fn get_stats(lay_path: &str, text: &str) {
+fn get_stats(lay_path: &str, text: &Option<String>, file_path: &Option<String>) {
+  let text = match text {Some(t) => t, None => "no text given"};
   let mut lay = layout::Layout::default();
 
   let lay = match layout::init(&mut lay, lay_path) {
@@ -58,11 +61,19 @@ fn get_stats(lay_path: &str, text: &str) {
     None => return
   };
 
-  let tl = analyze::gen_timeline_parallel(text, lay);
+  let tl = match file_path {
+    Some(p) => analyze::gen_timeline_file(p, lay),
+    None => analyze::gen_timeline(text, false, lay)
+  };
+
   analyze::print_timeline(&tl);
 }
 
-fn play_anim(lay_path: &str, text: &str) {
+fn play_anim(lay_path: &str, text: &Option<String>) {
+  let text = match text {
+    Some(t) => t,
+    None => "no text given",
+  };
   let (context, canvas, ttf) = display::init("Layout Speed").unwrap();
   let font = display::init_font(&ttf);
   let mut disp = display::Data {
