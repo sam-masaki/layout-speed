@@ -17,11 +17,13 @@ pub fn main() {
   let mut text: Option<String> = None;
   let mut file_path: Option<String> = None;
   let mut anim = true;
+  let mut parallel = true;
   for opt in args {
     match opt.0.as_str() {
       "-l" => lay_path = opt.1,
       "-t" => text = Some(opt.1),
       "-f" => file_path = Some(opt.1),
+      "-p" => parallel = opt.1 == "true",
       "-n" => anim = false,
       x => println!("Unknown option: {}", x),
     }
@@ -30,7 +32,7 @@ pub fn main() {
   if anim {
     play_anim(&lay_path, &text);
   } else {
-    get_stats(&lay_path, &text, &file_path);
+    get_stats(&lay_path, &text, &file_path, parallel);
   }
 }
 
@@ -52,7 +54,7 @@ fn parse_args(args: &[String]) -> Vec<(String, String)> {
   res
 }
 
-fn get_stats(lay_path: &str, text: &Option<String>, file_path: &Option<String>) {
+fn get_stats(lay_path: &str, text: &Option<String>, file_path: &Option<String>, parallel: bool) {
   let text = match text {Some(t) => t, None => "no text given"};
   let mut lay = layout::Layout::default();
 
@@ -62,7 +64,7 @@ fn get_stats(lay_path: &str, text: &Option<String>, file_path: &Option<String>) 
   };
 
   let tl = match file_path {
-    Some(p) => analyze::gen_timeline_file(p, lay),
+    Some(p) => analyze::gen_timeline_file(p, parallel, lay),
     None => analyze::gen_timeline(text, false, lay)
   };
 

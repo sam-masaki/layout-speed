@@ -144,14 +144,12 @@ pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -
     total_time = time_end_move;
   }
 
-  let word_count = string.split(' ').count();
-
   Timeline {
     fingers,
     finger_counts: finger_usage_cnt,
     total_time,
     total_dist,
-    total_words: word_count as u32,
+    total_words: string.split_whitespace().count() as u32,
     total_chars: string.len() as u32,
   }
 }
@@ -173,12 +171,12 @@ pub fn print_timeline(tl: &Timeline) {
     tl.total_dist,
     tl.total_dist * 19.05
   );
-  println!("Total time {}", tl.total_time);
+  println!("Total time {}s", (tl.total_time) / 1000);
   println!("Total words: {}", tl.total_words);
   println!("WPM: {}", tl.wpm());
 }
 
-pub fn gen_timeline_file(path: &String, lay: &layout::Layout) -> Timeline {
+pub fn gen_timeline_file(path: &String, parallel: bool, lay: &layout::Layout) -> Timeline {
   let mut file = match std::fs::File::open(path) {
     Ok(f) => f,
     Err(_) => panic!("file problem"),
@@ -187,39 +185,26 @@ pub fn gen_timeline_file(path: &String, lay: &layout::Layout) -> Timeline {
   let mut text = String::new();
   file.read_to_string(&mut text).unwrap();
 
-  gen_timeline_parallel(text.as_str(), lay)
+  if parallel {
+    gen_timeline_parallel(text.as_str(), lay)
+  } else {
+    gen_timeline(text.as_str(), false, lay)
+  }
 }
 
-// TODO: Make this useful. Probably want this to be for generating
-// stats for different layouts on large texts.
 fn gen_timeline_parallel<'a>(string: &'a str, lay: &layout::Layout) -> Timeline {
   let coll: Vec<Timeline> = string
     .par_lines()
     .map(|line| gen_timeline(line, false, lay))
     .collect();
 
-  let mut res = Timeline {
-    fingers: [
-      Vec::new(),
-      Vec::new(),
-      Vec::new(),
-      Vec::new(),
-      Vec::new(),
-      Vec::new(),
-      Vec::new(),
-      Vec::new(),
-      Vec::new(),
-      Vec::new(),
-    ],
-    finger_counts: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    total_time: 0,
-    total_dist: 0.0,
-    total_words: 0,
-    total_chars: 0
-  };
+  let mut res = Timeline::default();
 
+  // This is slightly inaccurate, w/ <1% error in total_time, and
+  // ~0.05% error in distance covered, both overestimating.  TODO:
+  // Mesh tl's together better with first and last moves for each
+  // finger
   for tl in coll {
-    // TODO: fix all of this
     for i in 0..10 {
       res.finger_counts[i] += tl.finger_counts[i];
     }
