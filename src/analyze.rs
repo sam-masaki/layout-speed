@@ -7,10 +7,24 @@ use super::layout;
 #[derive(Default)]
 pub struct Timeline {
   pub fingers: [Vec<Keyframe>; 10],
-  pub finger_usage: [f32; 10], // fraction of presses
+  pub finger_counts: [u32; 10], // number of presses
   pub total_time: i32,
   pub total_dist: f32, // in u
-  pub wpm: u16,
+  pub total_words: u32,
+  pub total_chars: u32,
+}
+
+impl Timeline {
+  pub fn wpm(&self) -> u16 {
+    (60000.0 * (self.total_words as f32) / (self.total_time as f32)) as u16
+  }
+
+  pub fn usage_percent(&self, i: usize) -> f32 {
+    if i >= 10 {
+      return -1.0;
+    }
+    100.0 * (self.finger_counts[i] as f32) / (self.total_chars as f32)
+  }
 }
 
 #[derive(Default, Clone, Copy)]
@@ -130,22 +144,22 @@ pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -
     total_time = time_end_move;
   }
 
-  let word_count = string.split(' ').count() as f32;
-  let wpm = (word_count / ((min_press as f32) / 60000.0)) as u16;
+  let word_count = string.split(' ').count();
 
   Timeline {
     fingers,
-    finger_usage: finger_usage_cnt.map(|c| (c as f32) / (string.len() as f32)),
+    finger_counts: finger_usage_cnt,
     total_time,
     total_dist,
-    wpm,
+    total_words: word_count as u32,
+    total_chars: string.len() as u32,
   }
 }
 
 pub fn print_timeline(tl: &Timeline) {
   for i in 0..10 {
     println!("Finger {}", i);
-    println!("  Usage %: {}", tl.finger_usage[i]);
+    println!("  Usage %: {}", tl.usage_percent(i));
     for kf in &tl.fingers[i] {
       println!(
         "    {}, {}, {}ms, {}",
@@ -160,7 +174,8 @@ pub fn print_timeline(tl: &Timeline) {
     tl.total_dist * 19.05
   );
   println!("Total time {}", tl.total_time);
-  println!("WPM: {}", tl.wpm);
+  println!("Total words: {}", tl.total_words);
+  println!("WPM: {}", tl.wpm());
 }
 
 pub fn gen_timeline_file(path: &String, lay: &layout::Layout) -> Timeline {
@@ -196,20 +211,23 @@ fn gen_timeline_parallel<'a>(string: &'a str, lay: &layout::Layout) -> Timeline 
       Vec::new(),
       Vec::new(),
     ],
-    finger_usage: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    finger_counts: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     total_time: 0,
     total_dist: 0.0,
-    wpm: 0,
+    total_words: 0,
+    total_chars: 0
   };
 
   for tl in coll {
     // TODO: fix all of this
     for i in 0..10 {
-      res.finger_usage[i] += tl.finger_usage[i];
+      res.finger_counts[i] += tl.finger_counts[i];
     }
 
     res.total_time += tl.total_time;
     res.total_dist += tl.total_dist;
+    res.total_words += tl.total_words;
+    res.total_chars += tl.total_chars;
   }
 
   res

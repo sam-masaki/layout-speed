@@ -134,7 +134,7 @@ fn play_anim(lay_path: &str, text: &Option<String>) {
       .as_str(),
       &mut disp,
     );
-    display::draw_text(10, 300, format!("WPM: {}", tl.wpm).as_str(), &mut disp);
+    display::draw_text(10, 300, format!("WPM: {}", tl.wpm()).as_str(), &mut disp);
     disp.canvas.present();
     ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
   }
