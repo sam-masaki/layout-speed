@@ -24,21 +24,28 @@ pub struct VisKey {
   pub name: String,
 }
 
+pub struct Combo<'a> {
+  pub key: &'a Key,
+  pub mods: Option<Vec<&'a Key>>,
+}
+
 pub struct Layout<'a> {
-  pub keys: Vec<Key>,
-  pub str_keys: HashMap<char, &'a Key>,
+  pub keys: Vec<Key>, // Stores text-inputting keys
+  pub char_keys: HashMap<char, Combo<'a>>,
   pub homes: [&'a Key; 10],
+  pub mod_map: HashMap<String, Key>, // Stores modifiers
 }
 
 impl<'a> Default for Layout<'a> {
   fn default() -> Self {
     Self {
       keys: Vec::new(),
-      str_keys: HashMap::new(),
+      char_keys: HashMap::new(),
       homes: [
         &DUMMY_KEY, &DUMMY_KEY, &DUMMY_KEY, &DUMMY_KEY, &DUMMY_KEY, &DUMMY_KEY, &DUMMY_KEY,
         &DUMMY_KEY, &DUMMY_KEY, &DUMMY_KEY,
       ],
+      mod_map: HashMap::new(),
     }
   }
 }
@@ -67,9 +74,6 @@ pub fn init<'a>(lay: &'a mut Layout<'a>, path: &str) -> Option<&'a Layout<'a>> {
   let mut prev_x = 0.0;
   let mut prev_y = 0.0;
   let mut prev_w = 0.0;
-
-  //let mut all_keys = Vec::new();
-  //let mut str_keys = HashMap::new();
 
   for res in reader.records() {
     let record = match res {
@@ -107,12 +111,45 @@ pub fn init<'a>(lay: &'a mut Layout<'a>, path: &str) -> Option<&'a Layout<'a>> {
       },
     };
 
-    lay.keys.push(key);
+    if key.visual.name == "lshift" {
+      lay.mod_map.insert("lshift".to_string(), key);
+    } else if key.visual.name == "rshift" {
+      lay.mod_map.insert("rshift".to_string(), key);
+    } else {
+      lay.keys.push(key);
+    }
   }
 
+  let lshift = match lay.mod_map.get("lshift") {
+    Some(s) => s,
+    None => &DUMMY_KEY,
+  };
+  let rshift = match lay.mod_map.get("rshift") {
+    Some(s) => s,
+    None => &DUMMY_KEY,
+  };
+
   for key in &lay.keys {
-    lay.str_keys.insert(key.pressed, key);
-    lay.str_keys.insert(key.shifted, key);
+    if key.pressed != '\0' {
+      lay.char_keys.insert(key.pressed, Combo { key, mods: None });
+    }
+    if key.shifted != '\0' {
+      let mut mods = Vec::new();
+      if key.finger < 5 {
+        mods.push(rshift);
+      } else {
+        mods.push(lshift);
+      }
+
+      lay.char_keys.insert(
+        key.shifted,
+        Combo {
+          key,
+          mods: Some(mods),
+        },
+      );
+    }
+
     if key.is_home && key.finger >= 0 && key.finger < 10 {
       lay.homes[key.finger as usize] = key;
     }
@@ -134,16 +171,16 @@ mod tests {
       None => return,
     };
 
-    // Check keys don't overlapping based on width
-    assert_eq!(lay.str_keys.get(&'d').unwrap().pos.x, 9.5);
-    assert_eq!(lay.str_keys.get(&'h').unwrap().pos.x, 7.5);
+    // Check keys aren't overlapping based on width
+    assert_eq!(lay.char_keys.get(&'d').unwrap().key.pos.x, 9.5);
+    assert_eq!(lay.char_keys.get(&'h').unwrap().key.pos.x, 7.5);
 
     // Check sizes
-    assert_eq!(lay.str_keys.get(&'a').unwrap().visual.height, 1.0);
-    assert_eq!(lay.str_keys.get(&'a').unwrap().visual.width, 1.5);
-    assert_eq!(lay.str_keys.get(&'f').unwrap().visual.height, 1.0);
-    assert_eq!(lay.str_keys.get(&'f').unwrap().visual.width, 3.0);
-    assert_eq!(lay.str_keys.get(&'d').unwrap().visual.height, 2.0);
+    assert_eq!(lay.char_keys.get(&'a').unwrap().key.visual.height, 1.0);
+    assert_eq!(lay.char_keys.get(&'a').unwrap().key.visual.width, 1.5);
+    assert_eq!(lay.char_keys.get(&'f').unwrap().key.visual.height, 1.0);
+    assert_eq!(lay.char_keys.get(&'f').unwrap().key.visual.width, 3.0);
+    assert_eq!(lay.char_keys.get(&'d').unwrap().key.visual.height, 2.0);
   }
 
   #[test]
@@ -157,13 +194,39 @@ mod tests {
     };
 
     assert!(std::ptr::eq(
-      *lay.str_keys.get(&'a').unwrap(),
-      *lay.str_keys.get(&'A').unwrap()
+      lay.char_keys.get(&'a').unwrap().key,
+      lay.char_keys.get(&'A').unwrap().key
     ));
     assert!(std::ptr::eq(
-      *lay.str_keys.get(&'=').unwrap(),
-      *lay.str_keys.get(&'%').unwrap()
+      lay.char_keys.get(&'=').unwrap().key,
+      lay.char_keys.get(&'%').unwrap().key
     ));
+  }
+
+  #[test]
+  // Shifted chars get assigned correctly
+  fn test_shifts() {
+    let mut lay = Layout::default();
+
+    let lay = match init(&mut lay, "test/shifts.layout") {
+      Some(l) => l,
+      None => return,
+    };
+
+    assert!(lay.char_keys.get(&'a').unwrap().mods.is_none());
+    assert!(lay.char_keys.get(&'z').unwrap().mods.is_none());
+
+    let a_shift = lay.char_keys.get(&'A').unwrap();
+    let z_shift = lay.char_keys.get(&'Z').unwrap();
+
+    let a_mods = a_shift.mods.as_ref().unwrap();
+    let z_mods = z_shift.mods.as_ref().unwrap();
+
+    assert_eq!(a_mods.len(), 1);
+    assert_eq!(z_mods.len(), 1);
+
+    assert_eq!(a_mods.last().unwrap().visual.name, "rshift");
+    assert_eq!(z_mods.last().unwrap().visual.name, "lshift");
   }
 
   #[test]
@@ -175,16 +238,16 @@ mod tests {
       None => return,
     };
 
-    let c = lay.str_keys.get(&'A').unwrap();
-    assert_eq!(c.visual.name, "key0");
-    assert_eq!(c.pressed, 'a');
-    assert_eq!(c.shifted, 'A');
-    assert_eq!(c.finger, 2);
-    assert!(c.is_home);
-    assert_eq!(c.pos.x, 2.0);
-    assert_eq!(c.pos.y, 3.0);
-    assert_eq!(c.visual.width, 3.0);
-    assert_eq!(c.visual.height, 2.5);
+    let c = lay.char_keys.get(&'a').unwrap();
+    assert_eq!(c.key.visual.name, "key0");
+    assert_eq!(c.key.pressed, 'a');
+    assert_eq!(c.key.shifted, 'A');
+    assert_eq!(c.key.finger, 2);
+    assert!(c.key.is_home);
+    assert_eq!(c.key.pos.x, 2.0);
+    assert_eq!(c.key.pos.y, 3.0);
+    assert_eq!(c.key.visual.width, 3.0);
+    assert_eq!(c.key.visual.height, 2.5);
   }
 
   #[test]

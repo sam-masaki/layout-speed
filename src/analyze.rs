@@ -72,10 +72,12 @@ pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -
   let mut total_time = 0;
 
   for c in string.chars() {
-    let key = match lay.str_keys.get(&c) {
-      Some(k) => k,
+    let combo = match lay.char_keys.get(&c) {
+      Some(co) => co,
       None => continue,
     };
+    let key = combo.key;
+
     let findex = key.finger as usize;
 
     finger_usage_cnt[findex] += 1;

@@ -79,30 +79,37 @@ pub fn draw_playdata(playdata: &playback::PlayData, disp_data: &mut Data) {
 
 pub fn draw_layout(lay: &layout::Layout, data: &mut Data) {
   for key in &lay.keys {
-    let x1 = (key.pos.x * KEY_W) as i16;
-    let y1 = (key.pos.y * KEY_H) as i16;
-    let x2 = x1 + ((KEY_W * key.visual.width) as i16);
-    let y2 = y1 + (KEY_W as i16);
+    draw_key(key, data);
+  }
+  for key in lay.mod_map.values() {
+    draw_key(key, data);
+  }
+}
 
-    data
-      .canvas
-      .rounded_rectangle(x1, y1, x2, y2, KEY_RAD, KEY_COL)
-      .unwrap();
+fn draw_key(key: &layout::Key, data: &mut Data) {
+  let x1 = (key.pos.x * KEY_W) as i16;
+  let y1 = (key.pos.y * KEY_H) as i16;
+  let x2 = x1 + ((KEY_W * key.visual.width) as i16);
+  let y2 = y1 + (KEY_W as i16);
 
+  data
+    .canvas
+    .rounded_rectangle(x1, y1, x2, y2, KEY_RAD, KEY_COL)
+    .unwrap();
+
+  draw_text(
+    (x1 + (KEY_RAD / 2)) as i32,
+    (y1 + (KEY_RAD / 2)) as i32,
+    &key.visual.name,
+    data,
+  );
+
+  if key.is_home {
     draw_text(
       (x1 + (KEY_RAD / 2)) as i32,
-      (y1 + (KEY_RAD / 2)) as i32,
-      &key.visual.name,
+      (y1 + (KEY_RAD / 2) + ((KEY_H as i16) / 2)) as i32,
+      "*",
       data,
-    );
-
-    if key.is_home {
-      draw_text(
-        (x1 + (KEY_RAD / 2)) as i32,
-        (y1 + (KEY_RAD / 2) + ((KEY_H as i16) / 2)) as i32,
-        "*",
-        data,
-      )
-    }
+    )
   }
 }
