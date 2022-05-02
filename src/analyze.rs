@@ -565,4 +565,21 @@ mod tests {
     assert_eq!(tl.total_words, tl_no_anim.total_words);
     assert_eq!(tl.total_chars, tl_no_anim.total_chars);
   }
+
+  #[test]
+  fn parallel() {
+    // TODO: Fix this. Implement above change to gen_timeline so home
+    // row returns can just not be generated in the first place
+    let mut lay = layout::Layout::default();
+    let lay = layout::init(&mut lay, "qwerty.layout").unwrap();
+
+    let text = "The Quick Brown\nFox Jumps Over\nThe Lazy Dog.";
+    let tl = gen_timeline(text, true, lay);
+    let tl_parallel = gen_timeline_parallel(text, lay);
+
+    assert_eq!(tl.total_time, tl_parallel.total_time);
+    assert_eq!(tl.total_dist, tl_parallel.total_dist);
+    assert_eq!(tl.total_words, tl_parallel.total_words);
+    assert_eq!(tl.total_chars, tl_parallel.total_chars);
+  }
 }
