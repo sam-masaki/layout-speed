@@ -84,7 +84,7 @@ pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -
     finger_usage_cnt[key_findex] += 1;
 
     let home_key = lay.homes[key_findex];
-    let prev_frame = fingers[key_findex].last().unwrap().clone();
+    let prev_frame = *fingers[key_findex].last().unwrap();
 
     total_dist += move_dist(&prev_frame.pos, &key.pos);
     total_dist += move_dist(&key.pos, &home_key.pos);
@@ -112,7 +112,7 @@ pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -
 
       for modifier in mods {
         let mod_index = modifier.finger as usize;
-        let prev = fingers[mod_index].last().unwrap().clone();
+        let prev = *fingers[mod_index].last().unwrap();
         let press_key = &modifier;
         let home_key = lay.homes[mod_index];
         let min_press = latest_on_press_key;
@@ -494,5 +494,63 @@ mod tests {
       assert_eq!(tl.fingers[i].last().unwrap().pos.x, lay.homes[i].pos.x);
       assert_eq!(tl.fingers[i].last().unwrap().pos.y, lay.homes[i].pos.y);
     }
+  }
+
+  #[test]
+  fn distance() {
+    let mut lay = layout::Layout::default();
+    let lay = layout::init(&mut lay, "qwerty.layout").unwrap();
+
+    let text = "qhv";
+    let tl = gen_timeline(text, true, lay);
+
+    let q_dist = 2.0 * (0.25_f32.powi(2) + 1.0).sqrt();
+    let h_dist = 2.0;
+    let v_dist = 2.0 * (0.5_f32.powi(2) + 1.0).sqrt();
+    assert_eq!(tl.total_dist, q_dist + h_dist + v_dist);
+  }
+
+  #[test]
+  fn distance_no_shift() {
+    // For now shift movement isn't included in distance
+    let mut lay = layout::Layout::default();
+    let lay = layout::init(&mut lay, "qwerty.layout").unwrap();
+
+    let text = "QHV";
+    let tl = gen_timeline(text, true, lay);
+
+    let q_dist = 2.0 * (0.25_f32.powi(2) + 1.0).sqrt();
+    let h_dist = 2.0;
+    let v_dist = 2.0 * (0.5_f32.powi(2) + 1.0).sqrt();
+    assert_eq!(tl.total_dist, q_dist + h_dist + v_dist);
+  }
+
+  #[test]
+  fn usage() {
+    let mut lay = layout::Layout::default();
+    let lay = layout::init(&mut lay, "qwerty.layout").unwrap();
+
+    let text = "qwertyuiop";
+    let tl = gen_timeline(text, true, lay);
+
+    assert_eq!(tl.usage_percent(0), 100.0 * (1.0 / 10.0));
+    assert_eq!(tl.usage_percent(3), 100.0 * (2.0 / 10.0));
+    assert_eq!(tl.usage_percent(4), 0.0);
+    assert_eq!(tl.usage_percent(9), 100.0 * (1.0 / 10.0));
+  }
+
+  #[test]
+  fn usage_no_shift() {
+    // For now shifting doesn't get counted as usage
+    let mut lay = layout::Layout::default();
+    let lay = layout::init(&mut lay, "qwerty.layout").unwrap();
+
+    let text = "QPWO";
+    let tl = gen_timeline(text, true, lay);
+
+    assert_eq!(tl.usage_percent(0), 25.0);
+    assert_eq!(tl.usage_percent(1), 25.0);
+    assert_eq!(tl.usage_percent(8), 25.0);
+    assert_eq!(tl.usage_percent(9), 25.0);
   }
 }
