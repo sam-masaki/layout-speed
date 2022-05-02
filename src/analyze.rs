@@ -32,6 +32,8 @@ pub struct Keyframe {
   pub pos: layout::Pos,
   pub time: i32,
   pub start_press: bool,
+  // TODO: use derivative to make this debug-only
+  // TODO: make this a String with the name of the key
   on_char: char,
 }
 
@@ -68,7 +70,7 @@ pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -
   let mut total_dist = 0.0;
 
   // The next press must start at or after min_press
-  let mut min_press = 0;
+  let mut min_start = 0;
   let mut total_time = 0;
 
   for c in string.chars() {
@@ -77,64 +79,90 @@ pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -
       None => continue,
     };
     let key = combo.key;
+    let key_findex = key.finger as usize;
 
-    let findex = key.finger as usize;
+    finger_usage_cnt[key_findex] += 1;
 
-    finger_usage_cnt[findex] += 1;
-
-    let home_key = lay.homes[findex];
-    let prev_frame = fingers[findex].last().unwrap();
+    let home_key = lay.homes[key_findex];
+    let prev_frame = fingers[key_findex].last().unwrap().clone();
 
     total_dist += move_dist(&prev_frame.pos, &key.pos);
     total_dist += move_dist(&key.pos, &home_key.pos);
 
     let start_move_dur = move_time(&prev_frame.pos, &key.pos);
-    let time_start_move = std::cmp::max(min_press, prev_frame.time);
-    let time_start_press = time_start_move + start_move_dur;
-    let time_end_press = time_start_press + PRESS_DUR;
+    let time_start_move = std::cmp::max(min_start, prev_frame.time);
 
-    let end_move_dur = move_time(&key.pos, &home_key.pos);
-    let time_end_move = time_end_press + end_move_dur;
+    let mut time_end_press = 0;
+    let mut time_end_move = 0;
 
-    if gen_anim {
-      // Only add starting keyframe if the finger has been at rest since
-      // its last move
-      if time_start_move != prev_frame.time {
-        let start_move = Keyframe {
-          pos: prev_frame.pos,
-          time: min_press,
-          start_press: false,
-          on_char: prev_frame.on_char,
-        };
-        fingers[findex].push(start_move);
+    if combo.mods.is_some() {
+      let mut latest_on_press_key = start_move_dur + time_start_move;
+
+      let mods = combo.mods.as_ref().unwrap();
+      for modifier in mods {
+        let findex = modifier.finger as usize;
+        let prev = fingers[findex].last().unwrap();
+
+        let dur = move_time(&prev.pos, &modifier.pos);
+        let last_move_time = std::cmp::max(min_start, prev.time);
+        if dur + last_move_time > latest_on_press_key {
+          latest_on_press_key = dur + last_move_time;
+        }
       }
 
-      let start_press = Keyframe {
-        pos: key.pos,
-        time: time_start_press,
-        start_press: true,
-        on_char: key.pressed,
-      };
-      fingers[findex].push(start_press);
+      for modifier in mods {
+        let mod_index = modifier.finger as usize;
+        let prev = fingers[mod_index].last().unwrap().clone();
+        let press_key = &modifier;
+        let home_key = lay.homes[mod_index];
+        let min_press = latest_on_press_key;
 
-      let end_press = Keyframe {
-        pos: key.pos,
-        time: time_end_press,
-        start_press: false,
-        on_char: key.pressed,
-      };
-      fingers[findex].push(end_press);
+        let (this_end_press, this_end_move) = push_keyframes(
+          &prev,
+          press_key,
+          home_key,
+          min_start,
+          min_press,
+          &mut fingers[mod_index],
+        );
 
-      let end_move = Keyframe {
-        pos: home_key.pos,
-        time: time_end_move,
-        start_press: false,
-        on_char: home_key.pressed,
-      };
-      fingers[findex].push(end_move);
+        time_end_press = std::cmp::max(this_end_press, time_end_press);
+        time_end_move = std::cmp::max(this_end_move, time_end_move);
+      }
+
+      let (this_end_press, this_end_move) = push_keyframes(
+        &prev_frame,
+        key,
+        home_key,
+        min_start,
+        latest_on_press_key,
+        &mut fingers[key_findex],
+      );
+
+      time_end_press = std::cmp::max(this_end_press, time_end_press);
+      time_end_move = std::cmp::max(this_end_move, time_end_move);
+    } else {
+      let (this_end_press, this_end_move) = push_keyframes(
+        &prev_frame,
+        key,
+        home_key,
+        min_start,
+        start_move_dur + time_start_move,
+        &mut fingers[key_findex],
+      );
+
+      time_end_press = std::cmp::max(this_end_press, time_end_press);
+      time_end_move = std::cmp::max(this_end_move, time_end_move);
+    }
+
+    // TODO: This should first finish the previous move by
+    // either moving back home or moving to this press' key. Can give
+    // the option to not fencepost so stitching is easier
+
+    if gen_anim {
     } else {
       // The anim-less mode still relies on the last keyframe
-      fingers[findex][0] = Keyframe {
+      fingers[key_findex][0] = Keyframe {
         pos: home_key.pos,
         time: time_end_move,
         start_press: false,
@@ -142,7 +170,7 @@ pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -
       };
     }
 
-    min_press = time_end_press;
+    min_start = time_end_press;
     total_time = time_end_move;
   }
 
@@ -156,14 +184,81 @@ pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -
   }
 }
 
+// Given the starting frame, what to press, where to return, add
+// the necessary frames for the whole move
+// min_start is the earliest the finger can start moving to the key
+// min_press is the earliest the key can start being pressed
+fn push_keyframes(
+  prev: &Keyframe,
+  press_key: &layout::Key,
+  home_key: &layout::Key,
+  min_start: i32,
+  min_press: i32,
+  frames: &mut Vec<Keyframe>,
+) -> (i32, i32) {
+  let time_start_move = std::cmp::max(min_start, prev.time);
+  let dur_start_move = move_time(&prev.pos, &press_key.pos);
+  let time_start_press = min_press;
+  let dur_end_move = move_time(&press_key.pos, &home_key.pos);
+
+  // Avoid duplicating end frame of previous move
+  if time_start_move != prev.time {
+    frames.push(Keyframe {
+      pos: prev.pos,
+      time: time_start_move,
+      start_press: false,
+      on_char: prev.on_char,
+    });
+  }
+
+  // Move to key and wait for other fingers
+  if time_start_move + dur_start_move != time_start_press {
+    frames.push(Keyframe {
+      pos: press_key.pos,
+      time: time_start_move + dur_start_move,
+      start_press: false,
+      on_char: press_key.pressed,
+    })
+  };
+
+  // Start pressing
+  frames.push(Keyframe {
+    pos: press_key.pos,
+    time: time_start_press,
+    start_press: true,
+    on_char: press_key.pressed,
+  });
+
+  // End pressing
+  frames.push(Keyframe {
+    pos: press_key.pos,
+    time: time_start_press + PRESS_DUR,
+    start_press: false,
+    on_char: press_key.pressed,
+  });
+
+  // Move back home
+  frames.push(Keyframe {
+    pos: home_key.pos,
+    time: time_start_press + PRESS_DUR + dur_end_move,
+    start_press: false,
+    on_char: home_key.pressed,
+  });
+
+  (
+    time_start_press + PRESS_DUR,
+    time_start_press + PRESS_DUR + dur_end_move,
+  )
+}
+
 pub fn print_timeline(tl: &Timeline) {
   for i in 0..10 {
     println!("Finger {}", i);
     println!("  Usage %: {}", tl.usage_percent(i));
     for kf in &tl.fingers[i] {
       println!(
-        "    {}, {}, {}ms, {}",
-        kf.pos.x, kf.pos.y, kf.time, kf.start_press
+        "    {}, {}, {}ms, {}, on \"{}\"",
+        kf.pos.x, kf.pos.y, kf.time, kf.start_press, kf.on_char
       );
     }
   }
@@ -301,13 +396,10 @@ mod tests {
       assert!(new_time >= prev_time, "A keyframe went backwards in time");
 
       for frame in moment {
-        // Note: this assumes there won't be multiple presses at the
-        // same time. For now this is true, and this shouldn't have to
-        // change when I add key combos
-        if frame.start_press {
+        if frame.start_press && frame.on_char != '\0' {
           assert_eq!(
-            frame.on_char,
-            string.chars().nth(curr_char).unwrap(),
+            frame.on_char.to_ascii_lowercase(),
+            string.chars().nth(curr_char).unwrap().to_ascii_lowercase(),
             "A key was pressed out of order"
           );
           curr_char += 1;
@@ -345,6 +437,45 @@ mod tests {
         if kf.start_press {
           assert_eq!(prev_press_end, kf.time);
           prev_press_end = kf.time + PRESS_DUR;
+        }
+      }
+    }
+  }
+
+  #[test]
+  fn shifted() {
+    let mut lay = layout::Layout::default();
+    let lay = layout::init(&mut lay, "qwerty.layout").unwrap();
+
+    let text = "uPpErCaSe AnD lOwErCaSe";
+    let tl = gen_timeline(text, true, lay);
+    common_invariants(&tl, text);
+    let flat = flatten_timeline(&tl);
+
+    let mut shift_on = false;
+    let mut curr_char = 0;
+    for moment in &flat {
+      // Look for shifts
+      for frame in moment {
+        // TODO: If I add other modifiers, this needs to be changed
+        if frame.on_char == '\0' {
+          shift_on = frame.start_press;
+        }
+      }
+
+      // Now check that right chars are shifted
+      for frame in moment {
+        if frame.on_char != '\0' && frame.start_press {
+          let key_mods = lay
+            .char_keys
+            .get(text.chars().nth(curr_char).as_ref().unwrap())
+            .unwrap()
+            .mods
+            .as_ref();
+          if key_mods.is_some() {
+            assert!(shift_on);
+          }
+          curr_char += 1;
         }
       }
     }
