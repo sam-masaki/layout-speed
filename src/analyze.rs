@@ -549,4 +549,20 @@ mod tests {
     assert_eq!(tl.usage_percent(8), 25.0);
     assert_eq!(tl.usage_percent(9), 25.0);
   }
+
+  #[test]
+  fn no_anim() {
+    // Timelines generated without animations should have the same stats
+    let mut lay = layout::Layout::default();
+    let lay = layout::init(&mut lay, "qwerty.layout").unwrap();
+
+    let text = "The Quick Brown Fox Jumps Over The Lazy Dog.";
+    let tl = gen_timeline(text, true, lay);
+    let tl_no_anim = gen_timeline(text, false, lay);
+
+    assert_eq!(tl.total_time, tl_no_anim.total_time);
+    assert_eq!(tl.total_dist, tl_no_anim.total_dist);
+    assert_eq!(tl.total_words, tl_no_anim.total_words);
+    assert_eq!(tl.total_chars, tl_no_anim.total_chars);
+  }
 }
