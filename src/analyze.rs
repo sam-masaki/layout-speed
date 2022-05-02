@@ -69,7 +69,7 @@ pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -
 
   let mut total_dist = 0.0;
 
-  // The next press must start at or after min_press
+  // The next move must start at or after min_start
   let mut min_start = 0;
   let mut total_time = 0;
 
@@ -78,95 +78,82 @@ pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -
       Some(co) => co,
       None => continue,
     };
-    let key = combo.key;
-    let key_findex = key.finger as usize;
+    let main_key = combo.key;
+    let main_findex = main_key.finger as usize;
+    let main_home = lay.homes[main_findex];
+    let main_prev = *fingers[main_findex].last().unwrap();
 
-    finger_usage_cnt[key_findex] += 1;
+    // The earliest moment all necessary fingers get on their keys
+    let mut min_press =
+      move_time(&main_prev.pos, &main_key.pos) + std::cmp::max(min_start, main_prev.time);
 
-    let home_key = lay.homes[key_findex];
-    let prev_frame = *fingers[key_findex].last().unwrap();
-
-    total_dist += move_dist(&prev_frame.pos, &key.pos);
-    total_dist += move_dist(&key.pos, &home_key.pos);
-
-    let start_move_dur = move_time(&prev_frame.pos, &key.pos);
-    let time_start_move = std::cmp::max(min_start, prev_frame.time);
-
+    // Currently time_end_press is the same between main key and
+    // modifiers but time_end_move varies
     let mut time_end_press = 0;
     let mut time_end_move = 0;
 
     if combo.mods.is_some() {
-      let mut latest_on_press_key = start_move_dur + time_start_move;
-
       let mods = combo.mods.as_ref().unwrap();
+
+      // Calculate min_press
       for modifier in mods {
         let findex = modifier.finger as usize;
         let prev = fingers[findex].last().unwrap();
 
         let dur = move_time(&prev.pos, &modifier.pos);
-        let last_move_time = std::cmp::max(min_start, prev.time);
-        if dur + last_move_time > latest_on_press_key {
-          latest_on_press_key = dur + last_move_time;
-        }
+        let time_last_move = std::cmp::max(min_start, prev.time);
+        min_press = min_press.max(dur + time_last_move);
       }
 
+      // Add keyframes for modifiers
       for modifier in mods {
-        let mod_index = modifier.finger as usize;
-        let prev = *fingers[mod_index].last().unwrap();
-        let press_key = &modifier;
-        let home_key = lay.homes[mod_index];
-        let min_press = latest_on_press_key;
-
-        let (this_end_press, this_end_move) = push_keyframes(
-          &prev,
-          press_key,
-          home_key,
+        let mod_findex = modifier.finger as usize;
+        let (this_end_press, this_end_move) = calc_keyframes(
+          &fingers[mod_findex].last().unwrap().clone(),
+          modifier,
+          lay.homes[mod_findex],
           min_start,
           min_press,
-          &mut fingers[mod_index],
+          gen_anim,
+          &mut fingers[mod_findex],
         );
 
-        time_end_press = std::cmp::max(this_end_press, time_end_press);
-        time_end_move = std::cmp::max(this_end_move, time_end_move);
+        time_end_press = time_end_press.max(this_end_press);
+        time_end_move = time_end_move.max(this_end_move);
       }
-
-      let (this_end_press, this_end_move) = push_keyframes(
-        &prev_frame,
-        key,
-        home_key,
-        min_start,
-        latest_on_press_key,
-        &mut fingers[key_findex],
-      );
-
-      time_end_press = std::cmp::max(this_end_press, time_end_press);
-      time_end_move = std::cmp::max(this_end_move, time_end_move);
-    } else {
-      let (this_end_press, this_end_move) = push_keyframes(
-        &prev_frame,
-        key,
-        home_key,
-        min_start,
-        start_move_dur + time_start_move,
-        &mut fingers[key_findex],
-      );
-
-      time_end_press = std::cmp::max(this_end_press, time_end_press);
-      time_end_move = std::cmp::max(this_end_move, time_end_move);
     }
+
+    // Add main frames
+    let (this_end_press, this_end_move) = calc_keyframes(
+      &main_prev,
+      main_key,
+      main_home,
+      min_start,
+      min_press,
+      gen_anim,
+      &mut fingers[main_findex],
+    );
+
+    // Add to stats
+    // For now this only includes main finger usage/movement
+    finger_usage_cnt[main_findex] += 1;
+    total_dist += move_dist(&main_prev.pos, &main_key.pos);
+    total_dist += move_dist(&main_key.pos, &main_home.pos);
+
+    time_end_press = time_end_press.max(this_end_press);
+    time_end_move = time_end_move.max(this_end_move);
 
     // TODO: This should first finish the previous move by
     // either moving back home or moving to this press' key. Can give
     // the option to not fencepost so stitching is easier
 
-    if gen_anim {
-    } else {
-      // The anim-less mode still relies on the last keyframe
-      fingers[key_findex][0] = Keyframe {
-        pos: home_key.pos,
+    if !gen_anim {
+      // The animation-less mode still relies on the last keyframe
+      fingers[main_findex][0] = Keyframe {
+        pos: main_home.pos,
         time: time_end_move,
         start_press: false,
-        on_char: home_key.pressed,
+        on_char: main_home.pressed,
       };
     }
 
@@ -188,18 +175,27 @@ pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -
 // the necessary frames for the whole move
 // min_start is the earliest the finger can start moving to the key
 // min_press is the earliest the key can start being pressed
-fn push_keyframes(
+// return the time the press ends and when the move ends
+fn calc_keyframes(
   prev: &Keyframe,
   press_key: &layout::Key,
   home_key: &layout::Key,
   min_start: i32,
   min_press: i32,
+  push_frames: bool,
   frames: &mut Vec<Keyframe>,
 ) -> (i32, i32) {
   let time_start_move = std::cmp::max(min_start, prev.time);
   let dur_start_move = move_time(&prev.pos, &press_key.pos);
   let time_start_press = min_press;
   let dur_end_move = move_time(&press_key.pos, &home_key.pos);
+
+  if !push_frames {
+    return (
+      time_start_press + PRESS_DUR,
+      time_start_press + PRESS_DUR + dur_end_move,
+    );
+  }
 
   // Avoid duplicating end frame of previous move
   if time_start_move != prev.time {
