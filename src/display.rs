@@ -44,7 +44,7 @@ pub fn init(title: &str) -> Result<(Sdl, Canvas<Window>, Sdl2TtfContext), String
 pub fn init_font(ttf: &Sdl2TtfContext) -> Font {
   ttf
     .load_font(
-      Path::new("/usr/share/fonts/noto/NotoSansMono-Regular.ttf"),
+      Path::new("./NotoSansMono-Regular.ttf"),
       12,
     )
     .unwrap()
