@@ -43,10 +43,7 @@ pub fn init(title: &str) -> Result<(Sdl, Canvas<Window>, Sdl2TtfContext), String
 // TODO: Get the font into Data. Not sure how to make it work with the borrow checker
 pub fn init_font(ttf: &Sdl2TtfContext) -> Font {
   ttf
-    .load_font(
-      Path::new("./NotoSansMono-Regular.ttf"),
-      12,
-    )
+    .load_font(Path::new("./NotoSansMono-Regular.ttf"), 12)
     .unwrap()
 }
 

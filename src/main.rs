@@ -55,17 +55,20 @@ fn parse_args(args: &[String]) -> Vec<(String, String)> {
 }
 
 fn get_stats(lay_path: &str, text: &Option<String>, file_path: &Option<String>, parallel: bool) {
-  let text = match text {Some(t) => t, None => "no text given"};
+  let text = match text {
+    Some(t) => t,
+    None => "no text given",
+  };
   let mut lay = layout::Layout::default();
 
   let lay = match layout::init(&mut lay, lay_path) {
     Some(l) => l,
-    None => return
+    None => return,
   };
 
   let tl = match file_path {
     Some(p) => analyze::gen_timeline_file(p, parallel, lay),
-    None => analyze::gen_timeline(text, false, lay)
+    None => analyze::gen_timeline(text, false, lay),
   };
 
   analyze::print_timeline(&tl);
@@ -97,7 +100,7 @@ fn play_anim(lay_path: &str, text: &Option<String>) {
 
   let mut playhead = playback::Playhead {
     time: 0,
-    idxs: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    idxs: [0; 10],
   };
 
   let mut playdata = playback::PlayData::default();
