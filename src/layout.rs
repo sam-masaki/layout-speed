@@ -41,10 +41,7 @@ impl<'a> Default for Layout<'a> {
     Self {
       keys: Vec::new(),
       char_keys: HashMap::new(),
-      homes: [
-        &DUMMY_KEY, &DUMMY_KEY, &DUMMY_KEY, &DUMMY_KEY, &DUMMY_KEY, &DUMMY_KEY, &DUMMY_KEY,
-        &DUMMY_KEY, &DUMMY_KEY, &DUMMY_KEY,
-      ],
+      homes: [&DUMMY_KEY; 10],
       mod_map: HashMap::new(),
     }
   }

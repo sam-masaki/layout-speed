@@ -40,18 +40,7 @@ pub struct Keyframe {
 static PRESS_DUR: i32 = 250;
 
 pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -> Timeline {
-  let mut fingers = [
-    Vec::new(),
-    Vec::new(),
-    Vec::new(),
-    Vec::new(),
-    Vec::new(),
-    Vec::new(),
-    Vec::new(),
-    Vec::new(),
-    Vec::new(),
-    Vec::new(),
-  ];
+  let mut fingers: [Vec<Keyframe>; 10] = Default::default();
 
   let mut finger_usage_cnt = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
