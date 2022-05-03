@@ -60,6 +60,8 @@ pub static DUMMY_KEY: Key = Key {
   },
 };
 
+static MODIFIERS: [&str; 2] = ["lshift", "rshift"];
+
 // Fill lay with the layout info from path
 pub fn init<'a>(lay: &'a mut Layout<'a>, path: &str) -> Option<&'a Layout<'a>> {
   let mut reader;
@@ -85,7 +87,7 @@ pub fn init<'a>(lay: &'a mut Layout<'a>, path: &str) -> Option<&'a Layout<'a>> {
     let finger = record.get(3)?.parse::<i16>().unwrap_or(-1);
     let is_home = !record.get(4)?.is_empty();
 
-    // Assume keys continue going right
+    // Assume keys continue going right on the same row
     let x = record.get(5)?.parse::<f32>().unwrap_or(prev_x + prev_w);
     let y = record.get(6)?.parse::<f32>().unwrap_or(prev_y);
     let w = record.get(7)?.parse::<f32>().unwrap_or(1.0);
@@ -108,23 +110,12 @@ pub fn init<'a>(lay: &'a mut Layout<'a>, path: &str) -> Option<&'a Layout<'a>> {
       },
     };
 
-    if key.visual.name == "lshift" {
-      lay.mod_map.insert("lshift".to_string(), key);
-    } else if key.visual.name == "rshift" {
-      lay.mod_map.insert("rshift".to_string(), key);
+    if MODIFIERS.contains(&key.visual.name.as_str()) {
+      lay.mod_map.insert(key.visual.name.clone(), key);
     } else {
       lay.keys.push(key);
     }
   }
-
-  let lshift = match lay.mod_map.get("lshift") {
-    Some(s) => s,
-    None => &DUMMY_KEY,
-  };
-  let rshift = match lay.mod_map.get("rshift") {
-    Some(s) => s,
-    None => &DUMMY_KEY,
-  };
 
   for key in &lay.keys {
     if key.pressed != '\0' {
@@ -133,9 +124,9 @@ pub fn init<'a>(lay: &'a mut Layout<'a>, path: &str) -> Option<&'a Layout<'a>> {
     if key.shifted != '\0' {
       let mut mods = Vec::new();
       if key.finger < 5 {
-        mods.push(rshift);
+        mods.push(lay.mod_map.get("rshift").unwrap_or(&DUMMY_KEY));
       } else {
-        mods.push(lshift);
+        mods.push(lay.mod_map.get("lshift").unwrap_or(&DUMMY_KEY));
       }
 
       lay.char_keys.insert(
