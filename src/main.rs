@@ -57,7 +57,7 @@ fn parse_args(args: &[String]) -> Vec<(String, String)> {
 fn get_stats(lay_path: &str, text: &Option<String>, file_path: &Option<String>, parallel: bool) {
   let text = match text {
     Some(t) => t,
-    None => "no text given",
+    None => "The quick brown fox jumps over the lazy dog.",
   };
   let mut lay = layout::Layout::default();
 
@@ -77,7 +77,7 @@ fn get_stats(lay_path: &str, text: &Option<String>, file_path: &Option<String>, 
 fn play_anim(lay_path: &str, text: &Option<String>) {
   let text = match text {
     Some(t) => t,
-    None => "no text given",
+    None => "The quick brown fox jumps over the lazy dog.",
   };
   let (context, canvas, ttf) = display::init("Layout Speed").unwrap();
   let font = display::init_font(&ttf);
