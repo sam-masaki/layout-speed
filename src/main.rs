@@ -17,15 +17,33 @@ pub fn main() {
   let mut file_path: Option<String> = None;
   let mut anim = true;
   let mut parallel = true;
+  let mut compare = false;
+
   for opt in args {
     match opt.0.as_str() {
       "-l" => lay_path = opt.1,
       "-t" => text = Some(opt.1),
       "-f" => file_path = Some(opt.1),
       "-p" => parallel = opt.1 == "true",
+      "-c" => compare = true,
       "-n" => anim = false,
       x => println!("Unknown option: {}", x),
     }
+  }
+
+  if compare {
+    let mut lay = layout::Layout::default();
+
+    let lay = match layout::init(&mut lay, lay_path.as_str()) {
+      Some(l) => l,
+      None => return,
+    };
+    let longest = analyze::compare_lines(file_path.as_ref().unwrap(), lay);
+
+    for word in longest {
+      println!("{} is {}mm long", word.1, word.0.total_dist_mm());
+    }
+    return;
   }
 
   if anim {

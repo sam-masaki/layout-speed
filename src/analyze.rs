@@ -1,5 +1,7 @@
 use std::io::Read;
+use std::{cmp::Ordering, collections::BinaryHeap};
 
+use rayon::iter::FromParallelIterator;
 use rayon::{iter::ParallelIterator, str::ParallelString};
 
 use super::layout;
@@ -45,6 +47,37 @@ impl Timeline {
 
   pub fn total_dist_km(&self) -> f32 {
     (self.total_dist / 1000000.0) * 19.05
+  }
+}
+
+// TODO: this is a bad equality
+impl Eq for Timeline {}
+impl PartialEq for Timeline {
+  fn eq(&self, other: &Self) -> bool {
+    self.total_dist == other.total_dist
+  }
+}
+
+impl Ord for Timeline {
+  fn cmp(&self, other: &Self) -> Ordering {
+    // For this I don't care about floating point inaccuracy
+    if self.total_chars == other.total_chars {
+      if self.total_dist == other.total_dist {
+        Ordering::Equal
+      } else if self.total_dist < other.total_dist {
+        Ordering::Less
+      } else {
+        Ordering::Greater
+      }
+    } else {
+      self.total_chars.cmp(&other.total_chars)
+    }
+  }
+}
+
+impl PartialOrd for Timeline {
+  fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+    Some(self.cmp(other))
   }
 }
 
@@ -358,6 +391,30 @@ fn gen_timeline_parallel<'a>(string: &'a str, lay: &layout::Layout) -> Timeline 
     res.total_words += tl.total_words;
     res.total_chars += tl.total_chars;
     res.total_switches += tl.total_switches;
+  }
+
+  res
+}
+
+pub fn compare_lines(path: &String, lay: &layout::Layout) -> Vec<(Timeline, String)> {
+  let mut file = match std::fs::File::open(path) {
+    Ok(f) => f,
+    Err(_) => panic!("file problem"),
+  };
+
+  let mut text = String::new();
+  file.read_to_string(&mut text).unwrap();
+
+  let mut heap = BinaryHeap::from_par_iter(
+    text
+      .par_lines()
+      .map(|line| (gen_timeline(line, false, lay), line.to_string())),
+  );
+
+  let mut res = Vec::new();
+
+  for i in 0..200 {
+    res.push(heap.pop().unwrap());
   }
 
   res
