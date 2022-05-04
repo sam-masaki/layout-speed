@@ -27,7 +27,7 @@ impl Timeline {
     (self.finger_counts[i] * 100) / (self.total_chars)
   }
 
-  pub fn u_per_word(&self) -> f32 {
+  pub fn u_per_char(&self) -> f32 {
     self.total_dist / (self.total_chars as f32)
   }
 
@@ -313,8 +313,8 @@ pub fn print_timeline(tl: &Timeline) {
     tl.total_dist_m(),
     tl.total_dist_km(),
   );
-  println!("Distance per word: {}u", tl.u_per_word());
-  println!("Total time {}s", (tl.total_time) / 1000);
+  println!("Distance per character: {}u", tl.u_per_char());
+  println!("Total time: {}s", (tl.total_time) / 1000);
   println!("Total words: {}", tl.total_words);
   println!("% Alternating: {}%", tl.alternating_percent());
   println!("WPM: {}", tl.wpm());
