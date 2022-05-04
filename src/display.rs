@@ -24,7 +24,9 @@ static SCREEN_HEIGHT: u32 = 720;
 static KEY_W: f32 = 50.0;
 static KEY_H: f32 = 50.0;
 static KEY_RAD: i16 = 10;
-static KEY_COL: Color = Color::RGB(0, 0, 255);
+static KEY_COL: Color = Color::RGB(0, 0, 0);
+static FING_COL: Color = Color::RGB(25, 128, 0);
+static BG_COL: Color = Color::RGB(255, 255, 255);
 
 pub fn init(title: &str) -> Result<(Sdl, Canvas<Window>, Sdl2TtfContext), String> {
   let context = sdl2::init()?;
@@ -61,15 +63,25 @@ pub fn draw_text(x: i32, y: i32, text: &str, data: &mut Data) {
   data.canvas.copy(&texture, None, pos).unwrap();
 }
 
+pub fn clear_screen(disp_data: &mut Data) {
+  disp_data.canvas.set_draw_color(BG_COL);
+  disp_data.canvas.clear();
+}
+
 pub fn draw_playdata(playdata: &playback::PlayData, disp_data: &mut Data) {
   for i in 0..10 {
     let finger = &playdata.fingers[i];
     let x = ((finger.pos.x * KEY_W) + (KEY_H / 2.0)) as i16;
     let y = ((finger.pos.y * KEY_H) + (KEY_H / 2.0)) as i16;
 
-    disp_data.canvas.circle(x, y, 10, KEY_COL).unwrap();
     if finger.pressing {
-      disp_data.canvas.circle(x, y, 15, KEY_COL).unwrap();
+      disp_data.canvas.filled_circle(x, y, 15, FING_COL).unwrap();
+    } else {
+      disp_data.canvas.filled_circle(x, y, 15, FING_COL).unwrap();
+      disp_data
+        .canvas
+        .filled_circle(x, y, 10, Color::RGB(255, 255, 255))
+        .unwrap();
     }
   }
 }

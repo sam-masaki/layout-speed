@@ -1,6 +1,5 @@
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use sdl2::pixels::Color;
 use std::env;
 use std::time::Duration;
 
@@ -107,8 +106,7 @@ fn play_anim(lay_path: &str, text: &Option<String>) {
 
   let mut event_pump = disp.context.event_pump().unwrap();
   'main: loop {
-    disp.canvas.set_draw_color(Color::RGB(0, 0, 0));
-    disp.canvas.clear();
+    display::clear_screen(&mut disp);
 
     for event in event_pump.poll_iter() {
       match event {
