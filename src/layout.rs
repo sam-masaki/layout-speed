@@ -3,8 +3,6 @@ use std::collections::HashMap;
 pub struct Key {
   pub pressed: char,
   pub shifted: char,
-  // TODO: Looks like I can have polymorphic enums for modifiers, but
-  // that seems like the kind of rabbit hole I don't need for this proj
   pub finger: i16,
   pub is_home: bool,
   pub pos: Pos,
@@ -77,7 +75,7 @@ pub fn init<'a>(lay: &'a mut Layout<'a>, path: &str) -> Option<&'a Layout<'a>> {
   for res in reader.records() {
     let record = match res {
       Ok(r) => r,
-      Err(_) => return None,
+      Err(e) => panic!("{}", e),
     };
 
     let name = record.get(0)?.to_string();
