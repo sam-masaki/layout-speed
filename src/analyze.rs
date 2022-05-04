@@ -12,6 +12,7 @@ pub struct Timeline {
   pub total_dist: f32, // in u
   pub total_words: u32,
   pub total_chars: u32,
+  pub total_switches: u32, // # of times alternated between L & R
 }
 
 impl Timeline {
@@ -19,11 +20,31 @@ impl Timeline {
     (60000.0 * (self.total_words as f32) / (self.total_time as f32)) as u16
   }
 
-  pub fn usage_percent(&self, i: usize) -> f32 {
+  pub fn usage_percent(&self, i: usize) -> u32 {
     if i >= 10 {
-      return -1.0;
+      return 0;
     }
-    100.0 * (self.finger_counts[i] as f32) / (self.total_chars as f32)
+    (self.finger_counts[i] * 100) / (self.total_chars)
+  }
+
+  pub fn u_per_word(&self) -> f32 {
+    self.total_dist / (self.total_chars as f32)
+  }
+
+  pub fn alternating_percent(&self) -> u32 {
+    (self.total_switches * 100) / (self.total_chars - 1)
+  }
+
+  pub fn total_dist_mm(&self) -> f32 {
+    self.total_dist * 19.05
+  }
+
+  pub fn total_dist_m(&self) -> f32 {
+    (self.total_dist / 1000.0) * 19.05
+  }
+
+  pub fn total_dist_km(&self) -> f32 {
+    (self.total_dist / 1000000.0) * 19.05
   }
 }
 
@@ -59,6 +80,7 @@ pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -
   }
 
   let mut total_dist = 0.0;
+  let mut total_switches = 0;
 
   // Next press must start after previous ends
   let mut time_end_prev_press = 0;
@@ -108,6 +130,8 @@ pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -
     // start moving until the previous press finishes
     if (this_left && prev_left) || (this_right && prev_right) {
       min_start = min_start.max(time_end_prev_press);
+    } else {
+      total_switches += 1;
     }
     let min_press = time_end_prev_press.max(min_start + max_dur);
 
@@ -188,6 +212,7 @@ pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -
     total_dist,
     total_words: string.split_whitespace().count() as u32,
     total_chars: string.len() as u32,
+    total_switches,
   }
 }
 
@@ -282,12 +307,16 @@ pub fn print_timeline(tl: &Timeline) {
   }
 
   println!(
-    "Total distance covered: {}u, {}mm",
+    "Total distance covered: {}u, {}mm, {}m, {}km",
     tl.total_dist,
-    tl.total_dist * 19.05
+    tl.total_dist_mm(),
+    tl.total_dist_m(),
+    tl.total_dist_km(),
   );
+  println!("Distance per word: {}u", tl.u_per_word());
   println!("Total time {}s", (tl.total_time) / 1000);
   println!("Total words: {}", tl.total_words);
+  println!("% Alternating: {}%", tl.alternating_percent());
   println!("WPM: {}", tl.wpm());
 }
 
@@ -328,6 +357,7 @@ fn gen_timeline_parallel<'a>(string: &'a str, lay: &layout::Layout) -> Timeline 
     res.total_dist += tl.total_dist;
     res.total_words += tl.total_words;
     res.total_chars += tl.total_chars;
+    res.total_switches += tl.total_switches;
   }
 
   res
@@ -551,10 +581,10 @@ mod tests {
     let text = "qwertyuiop";
     let tl = gen_timeline(text, true, lay);
 
-    assert_eq!(tl.usage_percent(0), 100.0 * (1.0 / 10.0));
-    assert_eq!(tl.usage_percent(3), 100.0 * (2.0 / 10.0));
-    assert_eq!(tl.usage_percent(4), 0.0);
-    assert_eq!(tl.usage_percent(9), 100.0 * (1.0 / 10.0));
+    assert_eq!(tl.usage_percent(0), (100.0 * (1.0 / 10.0)) as u32);
+    assert_eq!(tl.usage_percent(3), (100.0 * (2.0 / 10.0)) as u32);
+    assert_eq!(tl.usage_percent(4), 0);
+    assert_eq!(tl.usage_percent(9), (100.0 * (1.0 / 10.0)) as u32);
   }
 
   #[test]
@@ -566,10 +596,10 @@ mod tests {
     let text = "QPWO";
     let tl = gen_timeline(text, true, lay);
 
-    assert_eq!(tl.usage_percent(0), 25.0);
-    assert_eq!(tl.usage_percent(1), 25.0);
-    assert_eq!(tl.usage_percent(8), 25.0);
-    assert_eq!(tl.usage_percent(9), 25.0);
+    assert_eq!(tl.usage_percent(0), 25);
+    assert_eq!(tl.usage_percent(1), 25);
+    assert_eq!(tl.usage_percent(8), 25);
+    assert_eq!(tl.usage_percent(9), 25);
   }
 
   #[test]
