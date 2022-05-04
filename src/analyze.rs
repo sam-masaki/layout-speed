@@ -37,7 +37,9 @@ pub struct Keyframe {
   on_char: char,
 }
 
-static PRESS_DUR: i32 = 250;
+static PRESS_DUR: i32 = 50;
+static PRESS_GAP: i32 = 25; // ms delay between presses
+static MOVE_SPEED: f32 = 150.0; // Movement speed in ms / u
 
 pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -> Timeline {
   let mut fingers: [Vec<Keyframe>; 10] = Default::default();
@@ -58,9 +60,13 @@ pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -
 
   let mut total_dist = 0.0;
 
-  // The next move must start at or after min_start
-  let mut min_start = 0;
+  // Next press must start after previous ends
+  let mut time_end_prev_press = 0;
   let mut total_time = 0;
+
+  // What hand(s) the previous press used
+  let mut prev_left = false;
+  let mut prev_right = false;
 
   for c in string.chars() {
     let combo = match lay.char_keys.get(&c) {
@@ -72,14 +78,16 @@ pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -
     let main_home = lay.homes[main_findex];
     let main_prev = *fingers[main_findex].last().unwrap();
 
-    // The earliest moment all necessary fingers get on their keys
-    let mut min_press =
-      move_time(&main_prev.pos, &main_key.pos) + std::cmp::max(min_start, main_prev.time);
-
     // Currently time_end_press is the same between main key and
     // modifiers but time_end_move varies
     let mut time_end_press = 0;
     let mut time_end_move = 0;
+    // What hand(s) this press needs. Ignore thumbs
+    let mut this_left = main_findex < 4;
+    let mut this_right = main_findex > 5;
+
+    let mut max_dur = move_time(&main_prev.pos, &main_key.pos);
+    let mut min_start = main_prev.time;
 
     if combo.mods.is_some() {
       let mods = combo.mods.as_ref().unwrap();
@@ -90,10 +98,21 @@ pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -
         let prev = fingers[findex].last().unwrap();
 
         let dur = move_time(&prev.pos, &modifier.pos);
-        let time_last_move = std::cmp::max(min_start, prev.time);
-        min_press = min_press.max(dur + time_last_move);
+        max_dur = max_dur.max(dur);
+        min_start = min_start.max(prev.time);
+        (this_left, this_right) = (this_left || findex < 4, this_right || findex > 5);
       }
+    }
 
+    // If this move uses a hand that the previous move used, don't
+    // start moving until the previous press finishes
+    if (this_left && prev_left) || (this_right && prev_right) {
+      min_start = min_start.max(time_end_prev_press);
+    }
+    let min_press = time_end_prev_press.max(min_start + max_dur);
+
+    if combo.mods.is_some() {
+      let mods = combo.mods.as_ref().unwrap();
       // Add keyframes for modifiers
       for modifier in mods {
         let mod_findex = modifier.finger as usize;
@@ -109,6 +128,16 @@ pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -
 
         time_end_press = time_end_press.max(this_end_press);
         time_end_move = time_end_move.max(this_end_move);
+
+        if !gen_anim {
+          // The animation-less mode still relies on the last keyframe
+          fingers[mod_findex][0] = Keyframe {
+            pos: lay.homes[mod_findex].pos,
+            time: this_end_move,
+            start_press: false,
+            on_char: lay.homes[mod_findex].pressed,
+          };
+        }
       }
     }
 
@@ -123,30 +152,32 @@ pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -
       &mut fingers[main_findex],
     );
 
+    // TODO: This should first finish the previous move by
+    // either moving back home or moving to this press' key. Can give
+    // the option to not fencepost so stitching is easier
+    if !gen_anim {
+      // The animation-less mode still relies on the last keyframe
+      fingers[main_findex][0] = Keyframe {
+        pos: main_home.pos,
+        time: this_end_move,
+        start_press: false,
+        on_char: main_home.pressed,
+      };
+    }
+
+    time_end_press = time_end_press.max(this_end_press);
+    time_end_move = time_end_move.max(this_end_move);
+
     // Add to stats
     // For now this only includes main finger usage/movement
     finger_usage_cnt[main_findex] += 1;
     total_dist += move_dist(&main_prev.pos, &main_key.pos);
     total_dist += move_dist(&main_key.pos, &main_home.pos);
 
-    time_end_press = time_end_press.max(this_end_press);
-    time_end_move = time_end_move.max(this_end_move);
+    prev_left = this_left;
+    prev_right = this_right;
 
-    // TODO: This should first finish the previous move by
-    // either moving back home or moving to this press' key. Can give
-    // the option to not fencepost so stitching is easier
-
-    if !gen_anim {
-      // The animation-less mode still relies on the last keyframe
-      fingers[main_findex][0] = Keyframe {
-        pos: main_home.pos,
-        time: time_end_move,
-        start_press: false,
-        on_char: main_home.pressed,
-      };
-    }
-
-    min_start = time_end_press;
+    time_end_prev_press = time_end_press;
     total_time = time_end_move;
   }
 
@@ -174,9 +205,11 @@ fn calc_keyframes(
   push_frames: bool,
   frames: &mut Vec<Keyframe>,
 ) -> (i32, i32) {
-  let time_start_move = std::cmp::max(min_start, prev.time);
+  let min_press = min_press + PRESS_GAP;
+
   let dur_start_move = move_time(&prev.pos, &press_key.pos);
-  let time_start_press = min_press;
+  let time_start_move = prev.time.max(min_start).max(min_press - dur_start_move);
+  let time_start_press = min_press.max(min_start + dur_start_move);
   let dur_end_move = move_time(&press_key.pos, &home_key.pos);
 
   if !push_frames {
@@ -309,7 +342,7 @@ fn move_dist(start: &layout::Pos, end: &layout::Pos) -> f32 {
 }
 
 fn move_time(start: &layout::Pos, end: &layout::Pos) -> i32 {
-  (move_dist(start, end) * 250.0) as i32
+  (move_dist(start, end) * MOVE_SPEED) as i32
 }
 
 #[cfg(test)]
@@ -420,7 +453,7 @@ mod tests {
     for i in 0..10 {
       for kf in &tl.fingers[i] {
         if kf.start_press {
-          assert_eq!(prev_press_end, kf.time);
+          assert_eq!(prev_press_end + PRESS_GAP, kf.time);
           prev_press_end = kf.time + PRESS_DUR;
         }
       }
@@ -541,6 +574,22 @@ mod tests {
 
   #[test]
   fn no_anim() {
+    // Timelines generated without animations should have the same stats
+    let mut lay = layout::Layout::default();
+    let lay = layout::init(&mut lay, "qwerty.layout").unwrap();
+
+    let text = "The Quick Brown Fox Jumps Over The Lazy Dog.";
+    let tl = gen_timeline(text, true, lay);
+    let tl_no_anim = gen_timeline(text, false, lay);
+
+    assert_eq!(tl.total_time, tl_no_anim.total_time);
+    assert_eq!(tl.total_dist, tl_no_anim.total_dist);
+    assert_eq!(tl.total_words, tl_no_anim.total_words);
+    assert_eq!(tl.total_chars, tl_no_anim.total_chars);
+  }
+
+  #[test]
+  fn no_anim_shifts() {
     // Timelines generated without animations should have the same stats
     let mut lay = layout::Layout::default();
     let lay = layout::init(&mut lay, "qwerty.layout").unwrap();
