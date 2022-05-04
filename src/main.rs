@@ -143,19 +143,8 @@ fn play_anim(lay_path: &str, text: &Option<String>) {
     display::draw_layout(lay, &mut disp);
     display::draw_playdata(&playdata, &mut disp);
 
-    display::draw_text(10, 250, text, &mut disp);
-    display::draw_text(
-      10,
-      275,
-      format!(
-        "Total Distance: {}u, {}mm",
-        tl.total_dist,
-        tl.total_dist * 19.05
-      )
-      .as_str(),
-      &mut disp,
-    );
-    display::draw_text(10, 300, format!("WPM: {}", tl.wpm()).as_str(), &mut disp);
+    display::draw_text(10, 255, format!("\"{}\"", text).as_str(), &mut disp);
+    display::draw_text(10, 275, analyze::stats_string(&tl).as_str(), &mut disp);
     disp.canvas.present();
     ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
   }

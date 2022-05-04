@@ -50,7 +50,7 @@ pub static DUMMY_KEY: Key = Key {
   shifted: '\0',
   finger: -1,
   is_home: false,
-  pos: Pos { x: 0.0, y: 0.0 },
+  pos: Pos { x: -2.0, y: -2.0 },
   visual: VisKey {
     width: 0.0,
     height: 0.0,

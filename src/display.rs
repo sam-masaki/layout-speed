@@ -25,8 +25,10 @@ static KEY_W: f32 = 50.0;
 static KEY_H: f32 = 50.0;
 static KEY_RAD: i16 = 10;
 static KEY_COL: Color = Color::RGB(0, 0, 0);
-static FING_COL: Color = Color::RGB(25, 128, 0);
-static BG_COL: Color = Color::RGB(255, 255, 255);
+static FING_COL: Color = Color::RGB(25, 128, 255);
+static TEXT_COL: Color = Color::RGB(0, 0, 0);
+static BG_COL: Color = Color::RGB(250, 250, 255);
+static TEXT_VSTEP: i32 = 15;
 
 pub fn init(title: &str) -> Result<(Sdl, Canvas<Window>, Sdl2TtfContext), String> {
   let context = sdl2::init()?;
@@ -50,17 +52,18 @@ pub fn init_font(ttf: &Sdl2TtfContext) -> Font {
 }
 
 pub fn draw_text(x: i32, y: i32, text: &str, data: &mut Data) {
-  let surface = data
-    .font
-    .render(text)
-    .blended(Color::RGBA(255, 0, 0, 255))
-    .unwrap();
-  let creator = data.canvas.texture_creator();
-  let texture = creator.create_texture_from_surface(&surface).unwrap();
+  let mut y_offset = 0;
 
-  let TextureQuery { width, height, .. } = texture.query();
-  let pos = Rect::new(x, y, width, height);
-  data.canvas.copy(&texture, None, pos).unwrap();
+  for line in text.lines() {
+    let surface = data.font.render(line).blended(TEXT_COL).unwrap();
+    let creator = data.canvas.texture_creator();
+    let texture = creator.create_texture_from_surface(&surface).unwrap();
+
+    let TextureQuery { width, height, .. } = texture.query();
+    let pos = Rect::new(x, y + y_offset, width, height);
+    data.canvas.copy(&texture, None, pos).unwrap();
+    y_offset += TEXT_VSTEP;
+  }
 }
 
 pub fn clear_screen(disp_data: &mut Data) {
@@ -75,13 +78,10 @@ pub fn draw_playdata(playdata: &playback::PlayData, disp_data: &mut Data) {
     let y = ((finger.pos.y * KEY_H) + (KEY_H / 2.0)) as i16;
 
     if finger.pressing {
-      disp_data.canvas.filled_circle(x, y, 15, FING_COL).unwrap();
+      disp_data.canvas.filled_circle(x, y, 12, FING_COL).unwrap();
     } else {
-      disp_data.canvas.filled_circle(x, y, 15, FING_COL).unwrap();
-      disp_data
-        .canvas
-        .filled_circle(x, y, 10, Color::RGB(255, 255, 255))
-        .unwrap();
+      disp_data.canvas.filled_circle(x, y, 12, FING_COL).unwrap();
+      disp_data.canvas.filled_circle(x, y, 8, BG_COL).unwrap();
     }
   }
 }

@@ -339,18 +339,32 @@ pub fn print_timeline(tl: &Timeline) {
     }
   }
 
-  println!(
-    "Total distance covered: {}u, {}mm, {}m, {}km",
+  println!("{}", stats_string(tl));
+}
+
+pub fn stats_string(tl: &Timeline) -> String {
+  format!(
+    concat!(
+      "Total distance covered: {}u\n",
+      "                        {}mm\n",
+      "                        {}m\n",
+      "                        {}km\n",
+      "Distance per char: {}u\n",
+      "Total time: {}s\n",
+      "Total words: {}\n",
+      "% Alternating: {}%\n",
+      "WPM: {}"
+    ),
     tl.total_dist,
     tl.total_dist_mm(),
     tl.total_dist_m(),
     tl.total_dist_km(),
-  );
-  println!("Distance per character: {}u", tl.u_per_char());
-  println!("Total time: {}s", (tl.total_time) / 1000);
-  println!("Total words: {}", tl.total_words);
-  println!("% Alternating: {}%", tl.alternating_percent());
-  println!("WPM: {}", tl.wpm());
+    tl.u_per_char(),
+    tl.total_time / 1000,
+    tl.total_words,
+    tl.alternating_percent(),
+    tl.wpm()
+  )
 }
 
 pub fn gen_timeline_file(path: &String, parallel: bool, lay: &layout::Layout) -> Timeline {
