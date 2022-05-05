@@ -18,8 +18,8 @@ pub struct Data<'a, 'b> {
   pub font: Font<'a, 'b>,
 }
 
-static SCREEN_WIDTH: u32 = 1280;
-static SCREEN_HEIGHT: u32 = 720;
+static SCREEN_WIDTH: u32 = 768;
+static SCREEN_HEIGHT: u32 = 425;
 
 static KEY_W: f32 = 50.0;
 static KEY_H: f32 = 50.0;
