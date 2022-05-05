@@ -12,7 +12,7 @@ pub fn main() {
   let raw_args: Vec<String> = env::args().collect();
   let args = parse_args(&raw_args);
 
-  let mut lay_path = "qwerty.layout".to_string();
+  let mut lay_path = "layouts/qwerty.layout".to_string();
   let mut text: Option<String> = None;
   let mut file_path: Option<String> = None;
   let mut anim = true;
