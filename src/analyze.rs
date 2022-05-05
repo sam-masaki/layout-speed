@@ -450,6 +450,8 @@ fn move_time(start: &layout::Pos, end: &layout::Pos) -> i32 {
 mod tests {
   use super::*;
 
+  static QWERTY_PATH: &str = "layouts/qwerty.layout";
+
   // Turn a timeline into a flat list of Vec<Keyframes> for testing
   // Multiple Keyframes at the same time are put into the same inner Vec<>
   // Not very efficient, but for testing it's fine
@@ -533,7 +535,7 @@ mod tests {
   fn one_finger() {
     // Test back to back single-finger movement
     let mut lay = layout::Layout::default();
-    let lay = layout::init(&mut lay, "qwerty.layout").unwrap();
+    let lay = layout::init(&mut lay, QWERTY_PATH).unwrap();
 
     let text = "rgvf";
     let tl = gen_timeline(text, true, lay);
@@ -544,7 +546,7 @@ mod tests {
   fn moveless_text() {
     // Test text that is all on the home row
     let mut lay = layout::Layout::default();
-    let lay = layout::init(&mut lay, "qwerty.layout").unwrap();
+    let lay = layout::init(&mut lay, QWERTY_PATH).unwrap();
 
     let text = "asdf jkl;";
     let tl = gen_timeline(text, true, lay);
@@ -564,7 +566,7 @@ mod tests {
   #[test]
   fn shifted() {
     let mut lay = layout::Layout::default();
-    let lay = layout::init(&mut lay, "qwerty.layout").unwrap();
+    let lay = layout::init(&mut lay, QWERTY_PATH).unwrap();
 
     let text = "uPpErCaSe AnD lOwErCaSe";
     let tl = gen_timeline(text, true, lay);
@@ -604,7 +606,7 @@ mod tests {
   fn return_to_home() {
     // All fingers' last position should be home
     let mut lay = layout::Layout::default();
-    let lay = layout::init(&mut lay, "qwerty.layout").unwrap();
+    let lay = layout::init(&mut lay, QWERTY_PATH).unwrap();
 
     let text = "qxevy,o/";
     let tl = gen_timeline(text, true, lay);
@@ -618,7 +620,7 @@ mod tests {
   #[test]
   fn distance() {
     let mut lay = layout::Layout::default();
-    let lay = layout::init(&mut lay, "qwerty.layout").unwrap();
+    let lay = layout::init(&mut lay, QWERTY_PATH).unwrap();
 
     let text = "qhv";
     let tl = gen_timeline(text, true, lay);
@@ -633,7 +635,7 @@ mod tests {
   fn distance_no_shift() {
     // For now shift movement isn't included in distance
     let mut lay = layout::Layout::default();
-    let lay = layout::init(&mut lay, "qwerty.layout").unwrap();
+    let lay = layout::init(&mut lay, QWERTY_PATH).unwrap();
 
     let text = "QHV";
     let tl = gen_timeline(text, true, lay);
@@ -647,7 +649,7 @@ mod tests {
   #[test]
   fn usage() {
     let mut lay = layout::Layout::default();
-    let lay = layout::init(&mut lay, "qwerty.layout").unwrap();
+    let lay = layout::init(&mut lay, QWERTY_PATH).unwrap();
 
     let text = "qwertyuiop";
     let tl = gen_timeline(text, true, lay);
@@ -662,7 +664,7 @@ mod tests {
   fn usage_no_shift() {
     // For now shifting doesn't get counted as usage
     let mut lay = layout::Layout::default();
-    let lay = layout::init(&mut lay, "qwerty.layout").unwrap();
+    let lay = layout::init(&mut lay, QWERTY_PATH).unwrap();
 
     let text = "QPWO";
     let tl = gen_timeline(text, true, lay);
@@ -677,7 +679,7 @@ mod tests {
   fn no_anim() {
     // Timelines generated without animations should have the same stats
     let mut lay = layout::Layout::default();
-    let lay = layout::init(&mut lay, "qwerty.layout").unwrap();
+    let lay = layout::init(&mut lay, QWERTY_PATH).unwrap();
 
     let text = "The Quick Brown Fox Jumps Over The Lazy Dog.";
     let tl = gen_timeline(text, true, lay);
@@ -693,7 +695,7 @@ mod tests {
   fn no_anim_shifts() {
     // Timelines generated without animations should have the same stats
     let mut lay = layout::Layout::default();
-    let lay = layout::init(&mut lay, "qwerty.layout").unwrap();
+    let lay = layout::init(&mut lay, QWERTY_PATH).unwrap();
 
     let text = "The Quick Brown Fox Jumps Over The Lazy Dog.";
     let tl = gen_timeline(text, true, lay);
@@ -711,7 +713,7 @@ mod tests {
     // TODO: Fix this. Implement above change to gen_timeline so home
     // row returns can just not be generated in the first place
     let mut lay = layout::Layout::default();
-    let lay = layout::init(&mut lay, "qwerty.layout").unwrap();
+    let lay = layout::init(&mut lay, QWERTY_PATH).unwrap();
 
     let text = "The Quick Brown\nFox Jumps Over\nThe Lazy Dog.";
     let tl = gen_timeline(text, true, lay);
