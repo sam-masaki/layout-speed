@@ -9,9 +9,16 @@ The initial motivation for making this was [Matt Parker's video](https://www.you
 # Usage
 So far, this includes the QWERTY, Dvorak and Colemak layouts, as well as the text of Alice's Adventures in Wonderland and a newline-separated file of all English words
 ## Options
+
 **-l** - Specify the layout file to use, defaults to qwerty
+
 **-t** - A string to simulate
+
 **-f** - A file with text to simulate, mutually exclusive with **-t**
+
 **-p** - true or false, whether to run the simulation in parallel
+
 **-c** - Compare each line of the given file and output the longest
+
 **-n** - Don't display any visualization, just output stats
+
