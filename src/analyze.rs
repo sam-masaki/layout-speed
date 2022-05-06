@@ -1,7 +1,7 @@
 use std::io::Read;
 use std::{cmp::Ordering, collections::BinaryHeap};
 
-use rayon::iter::FromParallelIterator;
+use rayon::iter::{FromParallelIterator, IntoParallelRefIterator};
 use rayon::{iter::ParallelIterator, str::ParallelString};
 
 use super::layout;
@@ -94,6 +94,7 @@ pub struct Keyframe {
 static PRESS_DUR: i32 = 50;
 static PRESS_GAP: i32 = 25; // ms delay between presses
 static MOVE_SPEED: f32 = 150.0; // Movement speed in ms / u
+static PARALLEL_SIZE: usize = 90000;
 
 pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -> Timeline {
   let mut fingers: [Vec<Keyframe>; 10] = Default::default();
@@ -384,8 +385,21 @@ pub fn gen_timeline_file(path: &String, parallel: bool, lay: &layout::Layout) ->
 }
 
 fn gen_timeline_parallel<'a>(string: &'a str, lay: &layout::Layout) -> Timeline {
-  let coll: Vec<Timeline> = string
-    .par_lines()
+  // Split text into more consistent sizes than lines()
+  let mut slices = Vec::new();
+  let mut start = 0;
+  while start < string.len() {
+    let mut this_size = std::cmp::min(PARALLEL_SIZE, string.len() - start);
+    while !string.is_char_boundary(start + this_size) {
+      this_size -= 1;
+    }
+
+    slices.push(unsafe { string.get_unchecked(start..(start + this_size)) });
+    start += this_size;
+  }
+
+  let coll: Vec<Timeline> = slices
+    .par_iter()
     .map(|line| gen_timeline(line, false, lay))
     .collect();
 
