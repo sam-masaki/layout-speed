@@ -124,18 +124,20 @@ pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -
   let mut prev_left = false;
   let mut prev_right = false;
 
+  // Each loop finishes moves fingers from last move back home, then
+  // moves fingers to keys necessary to input c
   for c in string.chars() {
+    let mut used_keys = Vec::new();
     let combo = match lay.char_keys.get(&c) {
       Some(co) => co,
       None => continue,
     };
     let main_key = combo.key;
     let main_findex = main_key.finger as usize;
+    used_keys.push(main_findex);
     let main_home = lay.homes[main_findex];
     let main_prev = *fingers[main_findex].last().unwrap();
 
-    // Currently time_end_press is the same between main key and
-    // modifiers but time_end_move varies
     let mut time_end_press = 0;
     let mut time_end_move = 0;
     // What hand(s) this press needs. Ignore thumbs
@@ -151,6 +153,7 @@ pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -
       // Calculate min_press
       for modifier in mods {
         let findex = modifier.finger as usize;
+        used_keys.push(findex);
         let prev = fingers[findex].last().unwrap();
 
         let dur = move_time(&prev.pos, &modifier.pos);
@@ -159,6 +162,9 @@ pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -
         (this_left, this_right) = (this_left || findex < 4, this_right || findex > 5);
       }
     }
+
+    // Finish the moves of fingers this key combo doesn't use
+    return_home(&used_keys, gen_anim, &mut fingers, lay);
 
     // If this move uses a hand that the previous move used, don't
     // start moving until the previous press finishes
@@ -190,10 +196,10 @@ pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -
         if !gen_anim {
           // The animation-less mode still relies on the last keyframe
           fingers[mod_findex][0] = Keyframe {
-            pos: lay.homes[mod_findex].pos,
-            time: this_end_move,
+            pos: modifier.pos,
+            time: this_end_press,
             start_press: false,
-            on_char: lay.homes[mod_findex].pressed,
+            on_char: modifier.pressed,
           };
         }
       }
@@ -210,16 +216,13 @@ pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -
       &mut fingers[main_findex],
     );
 
-    // TODO: This should first finish the previous move by
-    // either moving back home or moving to this press' key. Can give
-    // the option to not fencepost so stitching is easier
     if !gen_anim {
       // The animation-less mode still relies on the last keyframe
       fingers[main_findex][0] = Keyframe {
-        pos: main_home.pos,
-        time: this_end_move,
+        pos: main_key.pos,
+        time: this_end_press,
         start_press: false,
-        on_char: main_home.pressed,
+        on_char: main_key.pressed,
       };
     }
 
@@ -237,6 +240,11 @@ pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -
 
     time_end_prev_press = time_end_press;
     total_time = time_end_move;
+  }
+
+  // Finish the last move
+  if gen_anim {
+    return_home(&Vec::new(), gen_anim, &mut fingers, lay);
   }
 
   Timeline {
@@ -314,18 +322,38 @@ fn calc_keyframes(
     on_char: press_key.pressed,
   });
 
-  // Move back home
-  frames.push(Keyframe {
-    pos: home_key.pos,
-    time: time_start_press + PRESS_DUR + dur_end_move,
-    start_press: false,
-    on_char: home_key.pressed,
-  });
-
   (
     time_start_press + PRESS_DUR,
     time_start_press + PRESS_DUR + dur_end_move,
   )
+}
+
+// Returns fingers to their homes unless they are in ignore.
+fn return_home<'a>(ignore: &Vec<usize>, animate: bool, fingers: &mut [Vec<Keyframe>; 10], lay: &'a layout::Layout) {
+  for i in 0..10 {
+    if ignore.contains(&i) {
+      continue;
+    }
+    let home = lay.homes[i];
+    let prev = fingers[i].last().unwrap();
+    if move_dist(&prev.pos, &home.pos) < 0.1 {
+      continue;
+    }
+
+    let return_move_end = prev.time + move_time(&prev.pos, &home.pos);
+
+    let frame = Keyframe {
+        pos: home.pos,
+        time: return_move_end,
+        start_press: false,
+        on_char: home.pressed,
+    };
+    if animate {
+      fingers[i].push(frame);
+    } else {
+      fingers[i][0] = frame;
+    }
+  }
 }
 
 pub fn print_timeline(tl: &Timeline) {
