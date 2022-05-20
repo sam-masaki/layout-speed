@@ -8,67 +8,87 @@ mod display;
 mod layout;
 mod playback;
 
+struct ProgOptions {
+  lay_path: String,
+  file_path: Option<String>,
+  text: Option<String>,
+  animate: bool,
+  parallel: bool,
+  compare: bool,
+}
+
 pub fn main() {
   let raw_args: Vec<String> = env::args().collect();
-  let args = parse_args(&raw_args);
 
-  let mut lay_path = "layouts/qwerty.layout".to_string();
-  let mut text: Option<String> = None;
-  let mut file_path: Option<String> = None;
-  let mut anim = true;
-  let mut parallel = true;
-  let mut compare = false;
+  let options = match parse_args(&raw_args) {
+    Some(o) => o,
+    None => return
+  };
 
-  for opt in args {
-    match opt.0.as_str() {
-      "-l" => lay_path = opt.1,
-      "-t" => text = Some(opt.1),
-      "-f" => file_path = Some(opt.1),
-      "-p" => parallel = opt.1 == "true",
-      "-c" => compare = true,
-      "-n" => anim = false,
-      x => println!("Unknown option: {}", x),
-    }
-  }
-
-  if compare {
+  if options.compare {
+    assert!(options.file_path.is_some(), "Comparing requires a text file");
     let mut lay = layout::Layout::default();
 
-    let lay = match layout::init(&mut lay, lay_path.as_str()) {
+    let lay = match layout::init(&mut lay, options.lay_path.as_str()) {
       Some(l) => l,
       None => return,
     };
-    let longest = analyze::compare_lines(file_path.as_ref().unwrap(), lay);
+    let longest = analyze::compare_lines(options.file_path.as_ref().unwrap(), lay);
 
     for word in longest {
       println!("{} is {}mm long", word.1, word.0.total_dist_mm());
     }
-    return;
-  }
-
-  if anim {
-    play_anim(&lay_path, &text);
+  } else if options.animate {
+    play_anim(&options.lay_path, &options.text);
   } else {
-    get_stats(&lay_path, &text, &file_path, parallel);
+    get_stats(&options.lay_path, &options.text, &options.file_path, options.parallel);
   }
 }
 
-fn parse_args(args: &[String]) -> Vec<(String, String)> {
-  let mut res = Vec::new();
+fn parse_args(args: &[String]) -> Option<ProgOptions> {
+  let mut lay_path = "layouts/qwerty.layout".to_string();
+  let mut file_path = None;
+  let mut text = None;
+  let mut animate = true;
+  let mut parallel = false;
+  let mut compare = false;
 
-  // TODO: make this better
   let mut i = 1;
   while i < args.len() {
-    if i + 1 < args.len() {
-      res.push((args[i].clone(), args[i + 1].clone()));
-      i += 2;
-    } else {
-      res.push((args[i].clone(), args[i].clone()));
-      break;
+    // TODO: This doesn't feel like the right way to do this
+    match args[i].as_str() {
+      "-n" => animate = false,
+      "-c" => compare = true,
+      f => {
+        if i + 1 >= args.len() {
+          println!("Flag {} needs a value or unrecognized", f);
+          return None;
+        }
+        let val = &args[i + 1];
+
+        match f {
+          "-l" => lay_path = val.clone(),
+          "-t" => text = Some(val.clone()),
+          "-f" => file_path = Some(val.clone()),
+          "-p" => parallel = val == "true",
+          unknown => {println!("Flag {} unrecognized", unknown); return None;}
+        }
+
+        i += 1;
+      },
     }
+
+    i += 1;
   }
 
-  res
+  return Some(ProgOptions{
+    lay_path,
+    file_path,
+    text,
+    animate,
+    parallel,
+    compare,
+  })
 }
 
 fn get_stats(lay_path: &str, text: &Option<String>, file_path: &Option<String>, parallel: bool) {
