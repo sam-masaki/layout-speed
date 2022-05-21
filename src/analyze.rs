@@ -360,12 +360,23 @@ pub fn print_timeline(tl: &Timeline) {
   for i in 0..10 {
     println!("Finger {}", i);
     println!("  Usage %: {}", tl.usage_percent(i));
+
     for kf in &tl.fingers[i] {
       println!(
         "    {}, {}, {}ms, {}, on \"{}\"",
         kf.pos.x, kf.pos.y, kf.time, kf.start_press, kf.on_char
       );
     }
+  }
+  for i in 0..10 {
+    print!("{} [", i);
+    for _ in 0..(tl.usage_percent(i) / 5) {
+      print!("X");
+    }
+    if tl.usage_percent(i) % 5 > 2 {
+      print!("x");
+    }
+    println!("]");
   }
 
   println!("{}", stats_string(tl));
