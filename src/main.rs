@@ -35,8 +35,10 @@ pub fn main() {
     };
     let longest = analyze::compare_lines(options.file_path.as_ref().unwrap(), lay);
 
+    let mut count = 1;
     for word in longest {
-      println!("{} is {}mm long", word.1, word.0.total_dist_mm());
+      println!("{:3}: {} is {}mm long and {} letters long", count, word.1, word.0.total_dist_mm(), word.0.total_chars);
+      count += 1;
     }
   } else if options.animate {
     play_anim(&options.lay_path, &options.text);
