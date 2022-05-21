@@ -57,6 +57,7 @@ fn parse_args(args: &[String]) -> Option<ProgOptions> {
   while i < args.len() {
     // TODO: This doesn't feel like the right way to do this
     match args[i].as_str() {
+      "-h" | "--help" => print_help(),
       "-n" => animate = false,
       "-c" => compare = true,
       f => {
@@ -89,6 +90,19 @@ fn parse_args(args: &[String]) -> Option<ProgOptions> {
     parallel,
     compare,
   })
+}
+
+fn print_help() {
+  println!("Usage: layout-speed [OPTIONS] [TEXT]");
+  println!("Options:");
+  println!("  -h, --help\t\tPrint this message");
+  println!("  -l FILE\t\tUse PATH as the keyboard layout instead of the default qwerty.layout");
+  println!("  -t STRING\t\tAnalyze the given STRING");
+  println!("  -f FILE\t\tAnalyze the contents of FILE");
+  println!("  -p true/false\t\tWhether to analyze the text or file in parallel");
+  println!("  -n\t\t\tOnly generate statistics on the text, without the animation");
+  println!("  -c\t\t\tCompare each line of the given file and output the longest one");
+  std::process::exit(0);
 }
 
 fn get_stats(lay_path: &str, text: &Option<String>, file_path: &Option<String>, parallel: bool) {
