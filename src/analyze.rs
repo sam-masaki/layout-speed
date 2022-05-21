@@ -409,7 +409,7 @@ pub fn stats_string(tl: &Timeline) -> String {
 pub fn gen_timeline_file(path: &String, parallel: bool, lay: &layout::Layout) -> Timeline {
   let mut file = match std::fs::File::open(path) {
     Ok(f) => f,
-    Err(_) => panic!("file problem"),
+    Err(e) => panic!("file problem: {}", e),
   };
 
   let mut text = String::new();
