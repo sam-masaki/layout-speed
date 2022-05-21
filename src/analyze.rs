@@ -480,7 +480,7 @@ pub fn compare_lines(path: &String, lay: &layout::Layout) -> Vec<(Timeline, Stri
 
   let mut res = Vec::new();
 
-  for i in 0..200 {
+  for _ in 0..(heap.len().min(100)) {
     res.push(heap.pop().unwrap());
   }
 
