@@ -14,13 +14,12 @@ So far, this includes the QWERTY, Dvorak and Colemak layouts, as well as the tex
 
 `-l` - Specify the layout file to use, defaults to qwerty
 
-`-t` - A string to simulate
+`-t` - A string to simulate, defaults to "The quick brown..."
 
 `-f` - A file with text to simulate, mutually exclusive with **-t**
 
 `-p` - true or false, whether to run the simulation in parallel
 
-`-c` - Compare each line of the given file and output the longest
+`-n` - Output stats without running animation
 
-`-n` - Don't display any visualization, just output stats
-
+`-c` - Compare each line of the given file and output the longest.
