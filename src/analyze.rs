@@ -61,16 +61,15 @@ impl PartialEq for Timeline {
 impl Ord for Timeline {
   fn cmp(&self, other: &Self) -> Ordering {
     // For this I don't care about floating point inaccuracy
-    if self.total_chars == other.total_chars {
-      if self.total_dist == other.total_dist {
-        Ordering::Equal
-      } else if self.total_dist < other.total_dist {
-        Ordering::Less
-      } else {
-        Ordering::Greater
-      }
+    let this_val = &self.total_dist;
+    let other_val = &other.total_dist;
+
+    if this_val == other_val {
+      Ordering::Equal
+    } else if this_val < other_val {
+      Ordering::Less
     } else {
-      self.total_chars.cmp(&other.total_chars)
+      Ordering::Greater
     }
   }
 }
