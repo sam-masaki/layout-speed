@@ -30,7 +30,7 @@ pub struct Combo<'a> {
 pub struct Layout<'a> {
   pub keys: Vec<Key>, // Stores text-inputting keys
   pub char_keys: HashMap<char, Combo<'a>>,
-  pub homes: [&'a Key; 10],
+  pub homes: Vec<&'a Key>,
   pub mod_map: HashMap<String, Key>, // Stores modifiers
 }
 
@@ -39,7 +39,7 @@ impl<'a> Default for Layout<'a> {
     Self {
       keys: Vec::new(),
       char_keys: HashMap::new(),
-      homes: [&DUMMY_KEY; 10],
+      homes: vec![&DUMMY_KEY; 1],
       mod_map: HashMap::new(),
     }
   }
@@ -136,7 +136,10 @@ pub fn init<'a>(lay: &'a mut Layout<'a>, path: &str) -> Option<&'a Layout<'a>> {
       );
     }
 
-    if key.is_home && key.finger >= 0 && key.finger < 10 {
+    if key.is_home && key.finger >= 0 {
+      while (lay.homes.len() as i16) <= key.finger {
+        lay.homes.push(&DUMMY_KEY);
+      }
       lay.homes[key.finger as usize] = key;
     }
   }

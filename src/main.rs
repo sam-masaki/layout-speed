@@ -153,10 +153,12 @@ fn play_anim(lay_path: &str, text: &Option<String>) {
 
   let mut playhead = playback::Playhead {
     time: 0,
-    idxs: [0; 10],
+    idxs: vec![0; tl.fingers.len()],
   };
 
-  let mut playdata = playback::PlayData::default();
+  let mut playdata = playback::PlayData {
+    fingers: vec![playback::FingerData::default(); tl.fingers.len()]
+  };
 
   let mut event_pump = disp.context.event_pump().unwrap();
   'main: loop {

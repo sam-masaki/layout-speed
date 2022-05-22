@@ -3,25 +3,24 @@ use super::layout;
 
 pub struct Playhead {
   pub time: i32,
-  pub idxs: [usize; 10],
+  pub idxs: Vec<usize>,
 }
 
-#[derive(Default)]
+#[derive(Default, Copy, Clone)]
 pub struct FingerData {
   pub pos: layout::Pos,
   pub pressing: bool,
 }
 
-#[derive(Default)]
 pub struct PlayData {
-  pub fingers: [FingerData; 10],
+  pub fingers: Vec<FingerData>,
 }
 
 // Calculate where each finger is positioned, and its pressing state
 // based on head
 pub fn calc_playback(head: &Playhead, timeline: &analyze::Timeline, data: &mut PlayData) {
   // finger will be somewhere between [idx] and [idx + 1]
-  for i in 0..10 {
+  for i in 0..data.fingers.len() {
     let prev_frame = &timeline.fingers[i][head.idxs[i]];
     if timeline.fingers[i].len() == head.idxs[i] + 1 {
       data.fingers[i].pos.x = prev_frame.pos.x;
@@ -49,7 +48,7 @@ pub fn calc_playback(head: &Playhead, timeline: &analyze::Timeline, data: &mut P
 pub fn inc_head(head: &mut Playhead, timeline: &analyze::Timeline, inc_ms: i32) {
   let new_time = head.time + inc_ms;
 
-  for i in 0..10 {
+  for i in 0..head.idxs.len() {
     let mut new_frame_idx = head.idxs[i];
 
     // Check future frames, if they exist, until the first one that

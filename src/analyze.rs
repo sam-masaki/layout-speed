@@ -8,7 +8,7 @@ use super::layout;
 
 #[derive(Default)]
 pub struct Timeline {
-  pub fingers: [Vec<Keyframe>; 10],
+  pub fingers: Vec<Vec<Keyframe>>,
   pub finger_counts: [u32; 10], // number of presses
   pub total_time: i32,
   pub total_dist: f32, // in u
@@ -96,11 +96,11 @@ static MOVE_SPEED: f32 = 150.0; // Movement speed in ms / u
 static PARALLEL_SIZE: usize = 90000;
 
 pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -> Timeline {
-  let mut fingers: [Vec<Keyframe>; 10] = Default::default();
+  let mut fingers: Vec<Vec<Keyframe>> = vec![Default::default(); lay.homes.len()];
 
   let mut finger_usage_cnt = [0; 10];
 
-  for i in 0..10 {
+  for i in 0..lay.homes.len() {
     fingers[i].push(Keyframe {
       pos: layout::Pos {
         x: lay.homes[i].pos.x,
@@ -328,8 +328,8 @@ fn calc_keyframes(
 }
 
 // Returns fingers to their homes unless they are in ignore.
-fn return_home<'a>(ignore: &Vec<usize>, animate: bool, fingers: &mut [Vec<Keyframe>; 10], lay: &'a layout::Layout) {
-  for i in 0..10 {
+fn return_home<'a>(ignore: &Vec<usize>, animate: bool, fingers: &mut Vec<Vec<Keyframe>>, lay: &'a layout::Layout) {
+  for i in 0..lay.homes.len() {
     if ignore.contains(&i) {
       continue;
     }
@@ -356,7 +356,7 @@ fn return_home<'a>(ignore: &Vec<usize>, animate: bool, fingers: &mut [Vec<Keyfra
 }
 
 pub fn print_timeline(tl: &Timeline) {
-  for i in 0..10 {
+  for i in 0..tl.fingers.len() {
     println!("Finger {}", i);
     println!("  Usage %: {}", tl.usage_percent(i));
 
@@ -367,7 +367,7 @@ pub fn print_timeline(tl: &Timeline) {
       );
     }
   }
-  for i in 0..10 {
+  for i in 0..tl.fingers.len() {
     print!("{} [", i);
     for _ in 0..(tl.usage_percent(i) / 5) {
       print!("X");
@@ -448,7 +448,7 @@ fn gen_timeline_parallel<'a>(string: &'a str, lay: &layout::Layout) -> Timeline 
   // Mesh tl's together better with first and last moves for each
   // finger
   for tl in coll {
-    for i in 0..10 {
+    for i in 0..lay.homes.len() {
       res.finger_counts[i] += tl.finger_counts[i];
     }
 

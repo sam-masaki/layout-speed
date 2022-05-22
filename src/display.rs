@@ -72,7 +72,7 @@ pub fn clear_screen(disp_data: &mut Data) {
 }
 
 pub fn draw_playdata(playdata: &playback::PlayData, disp_data: &mut Data) {
-  for i in 0..10 {
+  for i in 0..playdata.fingers.len() {
     let finger = &playdata.fingers[i];
     let x = ((finger.pos.x * KEY_W) + (KEY_H / 2.0)) as i16;
     let y = ((finger.pos.y * KEY_H) + (KEY_H / 2.0)) as i16;
