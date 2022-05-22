@@ -123,6 +123,20 @@ pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -
   let mut prev_left = false;
   let mut prev_right = false;
 
+  // Inclusive inner bounds for which "hand" each finger is on.
+  // If a finger is homed on space, assume it stays on space and the
+  // fingers on either side are left and right
+  let mut right_start = (lay.homes.len() / 2) as i16;
+  let mut left_end = right_start;
+  let space_key = lay.char_keys.get(&' ').unwrap().key;
+  if space_key.is_home {
+    assert!(space_key.finger != 0 && space_key.finger != (lay.homes.len() as i16) - 1,
+            "Layouts with a finger homed on the spacebar currently need to use one that isn't the leftmost or rightmost finger");
+
+    right_start = space_key.finger + 1;
+    left_end = space_key.finger - 1;
+  }
+
   // Each loop finishes moves fingers from last move back home, then
   // moves fingers to keys necessary to input c
   for c in string.chars() {
@@ -132,19 +146,18 @@ pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -
       None => continue,
     };
     let main_key = combo.key;
-    let main_findex = main_key.finger as usize;
-    used_keys.push(main_findex);
-    let main_home = lay.homes[main_findex];
-    let main_prev = *fingers[main_findex].last().unwrap();
 
     let mut time_end_press = 0;
     let mut time_end_move = 0;
-    // What hand(s) this press needs. Ignore thumbs
-    let mut this_left = main_findex < 4;
-    let mut this_right = main_findex > 5;
 
-    let mut max_dur = move_time(&main_prev.pos, &main_key.pos);
-    let mut min_start = main_prev.time;
+    // What hand(s) this press needs. Ignore thumbs
+    let mut this_left = false;
+    let mut this_right = false;
+
+    let mut max_dur = 0;
+    let mut min_start = 0;
+
+    let mut main_findex = main_key.finger as usize;
 
     if combo.mods.is_some() {
       let mods = combo.mods.as_ref().unwrap();
@@ -152,15 +165,37 @@ pub fn gen_timeline<'a>(string: &str, gen_anim: bool, lay: &'a layout::Layout) -
       // Calculate min_press
       for modifier in mods {
         let findex = modifier.finger as usize;
+
+        if findex == main_findex {
+          // TODO: This is really dumb and it will need to be changed for mulit-modifier combos
+          for i in 0..lay.homes.len() {
+            if i != findex {
+              main_findex = i;
+              break;
+            }
+          }
+        }
+
         used_keys.push(findex);
         let prev = fingers[findex].last().unwrap();
 
         let dur = move_time(&prev.pos, &modifier.pos);
         max_dur = max_dur.max(dur);
         min_start = min_start.max(prev.time);
-        (this_left, this_right) = (this_left || findex < 4, this_right || findex > 5);
+        this_left = this_left || (findex as i16) <= left_end;
+        this_right = this_right || (findex as i16) >= right_start;
       }
     }
+
+    used_keys.push(main_findex);
+    let main_home = lay.homes[main_findex];
+    let main_prev = *fingers[main_findex].last().unwrap();
+
+    this_left = this_left || (main_findex as i16) <= left_end;
+    this_right = this_right || (main_findex as i16) >= right_start;
+
+    max_dur = max_dur.max(move_time(&main_prev.pos, &main_key.pos));
+    min_start = min_start.max(main_prev.time);
 
     // Finish the moves of fingers this key combo doesn't use
     return_home(&used_keys, gen_anim, &mut fingers, lay);

@@ -58,7 +58,7 @@ pub static DUMMY_KEY: Key = Key {
   },
 };
 
-static MODIFIERS: [&str; 2] = ["lshift", "rshift"];
+static MODIFIERS: [&str; 3] = ["lshift", "rshift", "shift"];
 
 // Fill lay with the layout info from path
 pub fn init<'a>(lay: &'a mut Layout<'a>, path: &str) -> Option<&'a Layout<'a>> {
@@ -83,6 +83,10 @@ pub fn init<'a>(lay: &'a mut Layout<'a>, path: &str) -> Option<&'a Layout<'a>> {
     let shifted = record.get(2)?.chars().next().unwrap_or('\0');
 
     let finger = record.get(3)?.parse::<i16>().unwrap_or(-1);
+    while (lay.homes.len() as i16) <= finger {
+      lay.homes.push(&DUMMY_KEY);
+    }
+
     let is_home = !record.get(4)?.is_empty();
 
     // Assume keys continue going right on the same row
@@ -121,11 +125,18 @@ pub fn init<'a>(lay: &'a mut Layout<'a>, path: &str) -> Option<&'a Layout<'a>> {
     }
     if key.shifted != '\0' {
       let mut mods = Vec::new();
-      if key.finger < 5 {
-        mods.push(lay.mod_map.get("rshift").unwrap_or(&DUMMY_KEY));
-      } else {
-        mods.push(lay.mod_map.get("lshift").unwrap_or(&DUMMY_KEY));
+
+      let mut shift_key = "lshift";
+      if (key.finger as usize) < (lay.homes.len() / 2) {
+        shift_key = "rshift";
       }
+
+      let shift = match lay.mod_map.get(shift_key) {
+        Some(s) => s,
+        None => lay.mod_map.get("shift").unwrap_or(&DUMMY_KEY),
+      };
+
+      mods.push(shift);
 
       lay.char_keys.insert(
         key.shifted,
@@ -137,9 +148,6 @@ pub fn init<'a>(lay: &'a mut Layout<'a>, path: &str) -> Option<&'a Layout<'a>> {
     }
 
     if key.is_home && key.finger >= 0 {
-      while (lay.homes.len() as i16) <= key.finger {
-        lay.homes.push(&DUMMY_KEY);
-      }
       lay.homes[key.finger as usize] = key;
     }
   }
