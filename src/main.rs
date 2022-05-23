@@ -37,7 +37,7 @@ pub fn main() {
 
     let mut count = 1;
     for word in longest {
-      println!("{:3}: {} is {}mm long and {} letters long", count, word.1, word.0.total_dist_mm(), word.0.total_chars);
+      println!("{:3}: {} is {}mm long and {} letters long (u_per_char: {})", count, word.1, word.0.total_dist_mm(), word.0.total_chars, word.0.u_per_char());
       count += 1;
     }
   } else if options.animate {

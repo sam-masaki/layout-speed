@@ -30,7 +30,14 @@ impl Timeline {
   }
 
   pub fn u_per_char(&self) -> f32 {
-    self.total_dist / (self.total_chars as f32)
+    if self.fingers[0].len() <= 1 {
+      return 0.0;
+    }
+    let move_start = move_dist(&self.fingers[0][0].pos, &self.fingers[0][1].pos);
+    let back_home = move_dist(&self.fingers[0][self.fingers[0].len() - 1].pos,
+                              &self.fingers[0][self.fingers[0].len() - 2].pos);
+
+    (self.total_dist - (move_start + back_home)) / (self.total_chars as f32)
   }
 
   pub fn alternating_percent(&self) -> u32 {
@@ -61,8 +68,8 @@ impl PartialEq for Timeline {
 impl Ord for Timeline {
   fn cmp(&self, other: &Self) -> Ordering {
     // For this I don't care about floating point inaccuracy
-    let this_val = &self.total_dist;
-    let other_val = &other.total_dist;
+    let this_val = &self.u_per_char();
+    let other_val = &other.u_per_char();
 
     if this_val == other_val {
       Ordering::Equal
@@ -509,7 +516,7 @@ pub fn compare_lines(path: &String, lay: &layout::Layout) -> Vec<(Timeline, Stri
   let mut heap = BinaryHeap::from_par_iter(
     text
       .par_lines()
-      .map(|line| (gen_timeline(line, false, lay), line.to_string())),
+      .map(|line| (gen_timeline(line, true, lay), line.to_string())),
   );
 
   let mut res = Vec::new();
